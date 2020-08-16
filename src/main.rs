@@ -1,7 +1,7 @@
 use std::env;
 use std::fs::File;
 use std::path::Path;
-use std::io::{BufReader, BufRead};
+use std::io::{self, BufReader, BufRead, Read};
 
 fn main() {
     let args = env::args_os().skip(1);
@@ -18,15 +18,21 @@ fn main() {
 
         };
 
-        for (n, line) in file.lines().enumerate() {
-            let line = match line {
-                Ok(s) => s,
-                Err(err) => {
-                    eprintln!("Failed to read line {}: {}", n, err);
-                    return;
-                }
-            };
-            println!("{}", line);
+        match handle_file(file) {
+            Ok(_) => (),
+            Err(err) => {
+                eprintln!("{}", err);
+                return;
+            }
         }
     });
+}
+
+fn handle_file<R: Read>(file: BufReader<R>) -> io::Result<()> {
+    for (n, line) in file.lines().enumerate() {
+        let line = line?;
+        println!("{:5}:    \"{}\"", n, line);
+    }
+
+    Ok(())
 }
