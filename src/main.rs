@@ -43,6 +43,7 @@ fn apply_regex<R: Read>(file: BufReader<R>) -> io::Result<()> {
     let mut lines = Vec::new();
 
     for (pos, line) in file.lines().enumerate() {
+        let pos = pos + 1;
         let line = line?.trim_end().to_string();
         let prev_line = lines.last().map(|e: &String| e.as_str()).unwrap_or("");
 
