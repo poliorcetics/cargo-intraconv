@@ -1,14 +1,16 @@
-use ansi_term::Color;
-use argh::FromArgs;
+use crate::Action;
 use lazy_static::lazy_static;
-use regex::Regex;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read};
+use regex::{Captures, Regex};
+use std::fmt::Write;
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufRead, BufReader, Read, Write as _};
+use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
-// Find the elements to transform inside the file described by `path`. The root
-// crate is considered to be `krate`.
-pub fn handle_path(path: &PathBuf, krate: &str) {
+/// Find the elements to transform inside the file described by `path`. The root
+/// crate is considered to be `krate`. If `apply` is `true`, the changes will be
+/// collected and the whole file at `path` will be rewritten to include them.
+pub fn handle_path(path: &PathBuf, krate: &str, apply: bool) {
     // First display the path of the file that is about to be opened and tested.
     let path_display = path.display().to_string();
     println!("{}", &path_display);
@@ -19,22 +21,57 @@ pub fn handle_path(path: &PathBuf, krate: &str) {
     let file = match File::open(path) {
         Ok(file) => BufReader::new(file),
         Err(err) => {
-            eprintln!("Failed to open file '{}': {}", &path_display, err);
+            eprintln!("Failed to open file '{}' for read: {}", &path_display, err);
             return;
         }
     };
 
     // Then apply the regexes to search for links.
-    match search_links(file, krate) {
-        // TODO: handle the changes
-        Ok(_) => (),
+    let lines = match search_links(file, krate) {
+        Ok(lines) => lines,
         Err(err) => {
             eprintln!("Failed to handle file '{}': {}", &path_display, err);
             return;
         }
+    };
+
+    // Do not allocate when unecessary.
+    let mut string = if apply {
+        String::with_capacity(64 * lines.len())
+    } else {
+        String::new()
+    };
+
+    // Display the changes that can be made.
+    for l in lines {
+        if !l.is_unchanged() {
+            println!("{}\n", l);
+        }
+        if apply {
+            write!(string, "{}\n", l.new_line()).unwrap();
+        }
     }
 
-    // TODO: use the `apply` flag to modify the file if need be.
+    // If the changes are just displayed, not applied, stop execution here.
+    if !apply {
+        return;
+    }
+
+    let mut file = match OpenOptions::new().write(true).truncate(true).open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to open file '{}' for write: {}", &path_display, err);
+            return;
+        }
+    };
+
+    match write!(file, "{}", string) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to write to '{}': {}", &path_display, err);
+            return;
+        }
+    };
 }
 
 lazy_static! {
@@ -53,97 +90,114 @@ lazy_static! {
         r"(?P<elem2>.*)$",
     )).unwrap();
 
+    static ref IMPL_START: Regex = Regex::new(concat!(
+        r"^(?P<spaces>\s*)",
+        r"(?:impl|(?:pub(?:\(.+\))? )?trait)",
+        r"(?:<.*>)? ",
+        r"(?:.* for )?",
+        r"(?P<type>\S+)",
+        r"(?:<.*>)?",
+    ))
+    .unwrap();
+
+    static ref COMMENT_LINK: Regex = Regex::new(concat!(
+        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"(?P<supers>(?:\.\./)*)",
+        r"(?:(?P<crate>std|core|alloc)/)?",
+        r"(?P<intermediates>(?:.*/))?",
+        r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
+        r"(?P<elem2>.*)\.html",
+        r"(?:#(?:method|variant|tymethod)\.(?P<additional>\S*))?$",
+    ))
+    .unwrap();
+
+    static ref COMMENT_MODULE: Regex = Regex::new(concat!(
+        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"(?P<supers>(?:\.\./)*)",
+        r"(?:(?P<crate>std|core|alloc)/)?",
+        r"(?P<mods>(?:.*?/)*)",
+        r"index\.html$",
+    ))
+    .unwrap();
+
+    static ref METHOD_ANCHOR: Regex = Regex::new(concat!(
+        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"#(?:method|variant|tymethod)\.(?P<additional>\S*)$",
+    ))
+    .unwrap();
 }
 
-fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<String>> {
-    lazy_static! {
-        static ref IMPL_START: Regex = Regex::new(concat!(
-            r"^(?P<spaces>\s*)",
-            r"(?:impl|(?:pub(?:\(.+\))? )?trait)",
-            r"(?:<.*>)? ",
-            r"(?:.* for )?",
-            r"(?P<type>\S+)",
-            r"(?:<.*>)?",
-        ))
-        .unwrap();
-    }
-
-    let mut lines = Vec::<String>::new();
+fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Action>> {
+    let mut lines = Vec::<Action>::new();
     let mut curr_impl = None;
     let mut end_impl = String::new();
 
-    for (pos, line) in file.lines().enumerate() {
-        let pos = pos + 1;
-        let line = line?.trim_end().to_string();
+    for (raw_pos, curr_line) in file.lines().enumerate() {
+        // SAFETY: `raw_pos >= 0` so `raw_pos + 1 >= 1`.
+        let pos = unsafe { NonZeroUsize::new_unchecked(raw_pos + 1) };
+        let curr_line = curr_line?.trim_end().to_string();
 
-        if let Some(prev_line) = lines.last() {
+        if let Some(Action::Unchanged { line: prev_line }) = lines.last() {
             if EMPTY_DOC_COMMENT.is_match(prev_line) {
-                if EMPTY_DOC_COMMENT.is_match(&line) {
-                    print_del(&line, pos);
-                    print_del_reason("Consecutives empty comment lines");
+                if EMPTY_DOC_COMMENT.is_match(&curr_line) {
+                    lines.push(Action::Deleted {
+                        line: curr_line,
+                        reason: "Consecutives empty comment lines",
+                        pos,
+                    });
                     continue;
-                } else if !IS_DOC_COMMENT_LINE.is_match(&line) {
-                    print_del(prev_line, pos - 1);
-                    print_del_reason("Empty comment line at the end of a comment");
+                } else if !IS_DOC_COMMENT_LINE.is_match(&curr_line) {
+                    let i = lines.len() - 1;
+                    lines[i] = Action::Deleted {
+                        line: prev_line.clone(),
+                        reason: "Empty comment line at the end of a comment",
+                        // SAFETY: for this to happen there must be a previous
+                        // line so `raw_pos` is at least 1.
+                        pos: unsafe { NonZeroUsize::new_unchecked(raw_pos) },
+                    };
+                    continue;
                 }
             }
         }
 
-        let line = match handle_comment_link(line, pos, krate) {
-            Some(line) => line,
-            None => continue,
-        };
-
-        let line = match handle_module_link(line, pos, krate) {
-            Some(line) => line,
-            None => continue,
-        };
-
-        if let Some(capture) = IMPL_START.captures(&line) {
-            end_impl.clear();
-            end_impl.push_str(capture.name("spaces").unwrap().as_str());
-            end_impl.push('}');
-            curr_impl = Some(capture.name("type").unwrap().as_str().to_string());
+        if let Some(captures) = COMMENT_LINK.captures(&curr_line) {
+            lines.push(comment_link(captures, curr_line.clone(), pos, krate));
+            continue;
         }
 
-        if line == end_impl {
+        if let Some(captures) = COMMENT_MODULE.captures(&curr_line) {
+            lines.push(module_link(captures, curr_line.clone(), pos, krate));
+            continue;
+        }
+
+        if let Some(captures) = IMPL_START.captures(&curr_line) {
+            end_impl.clear();
+            end_impl.push_str(captures.name("spaces").unwrap().as_str());
+            end_impl.push('}');
+            curr_impl = Some(captures.name("type").unwrap().as_str().to_string());
+        }
+
+        if curr_line == end_impl {
             curr_impl = None;
             end_impl.clear();
         }
 
-        let line = if let Some(ref curr_impl) = curr_impl {
-            handle_method_anchor(line, pos, curr_impl)
-        } else {
-            line
-        };
+        if let Some(ref curr_impl) = curr_impl {
+            if let Some(captures) = METHOD_ANCHOR.captures(&curr_line) {
+                lines.push(method_anchor(captures, curr_line.clone(), pos, curr_impl));
+                continue;
+            }
+        }
 
-        lines.push(line);
+        lines.push(Action::Unchanged { line: curr_line });
     }
 
     Ok(lines)
 }
 
-fn handle_comment_link(line: String, pos: usize, krate: &str) -> Option<String> {
-    lazy_static! {
-        static ref COMMENT_LINK: Regex = Regex::new(concat!(
-            r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
-            r"(?P<supers>(?:\.\./)*)",
-            r"(?:(?P<crate>std|core|alloc)/)?",
-            r"(?P<intermediates>(?:.*/))?",
-            r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
-            r"(?P<elem2>.*)\.html",
-            r"(?:#(?:method|variant|tymethod)\.(?P<additional>\S*))?$",
-        ))
-        .unwrap();
-    }
-
-    let captures = match COMMENT_LINK.captures(&line) {
-        Some(c) => c,
-        None => return Some(line),
-    };
-
-    // Preparing the new line
-    let mut new = String::with_capacity(line.len());
+fn comment_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str) -> Action {
+    // Preparing the new line, most intra-doc comments will fit in 64 char.
+    let mut new = String::with_capacity(64);
 
     // Building the base of the link, which is always the same.
     new.push_str(captures.name("link_name").unwrap().as_str());
@@ -166,7 +220,7 @@ fn handle_comment_link(line: String, pos: usize, krate: &str) -> Option<String> 
     if let Some(intermediates) = captures.name("intermediates") {
         let intermediates: &str = intermediates.as_str();
         if intermediates.starts_with("http") {
-            return Some(line);
+            return Action::Unchanged { line };
         }
         if intermediates != "./" {
             new.push_str(&intermediates.replace("/", "::"));
@@ -181,42 +235,23 @@ fn handle_comment_link(line: String, pos: usize, krate: &str) -> Option<String> 
         new.push_str(additional.as_str());
     }
 
-    print_del(&line, pos);
-
     // Check if the link has become a local path
     if let Some(local) = LOCAL_PATH.captures(&new) {
-        let elem = local.name("elem").unwrap().as_str();
-        let elem2 = local.name("elem2").unwrap().as_str();
-        if elem == elem2 {
-            print_del_reason("Local path");
-            return None;
+        if local.name("elem") == local.name("elem2") {
+            return Action::Deleted {
+                line,
+                reason: "Local path",
+                pos,
+            };
         }
     }
 
-    print_add(&new);
-
-    Some(new)
+    Action::Replaced { line, new, pos }
 }
 
-fn handle_module_link(line: String, pos: usize, krate: &str) -> Option<String> {
-    lazy_static! {
-        static ref COMMENT_MODULE: Regex = Regex::new(concat!(
-            r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
-            r"(?P<supers>(?:\.\./)*)",
-            r"(?:(?P<crate>std|core|alloc)/)?",
-            r"(?P<mods>(?:.*?/)*)",
-            r"index\.html$",
-        ))
-        .unwrap();
-    }
-
-    let captures = match COMMENT_MODULE.captures(&line) {
-        Some(c) => c,
-        None => return Some(line),
-    };
-
-    // Preparing the new line
-    let mut new = String::with_capacity(line.len());
+fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str) -> Action {
+    // Preparing the new line, most intra-doc comments will fit in 64 char.
+    let mut new = String::with_capacity(64);
 
     // Building the base of the link, which is always the same.
     new.push_str(captures.name("link_name").unwrap().as_str());
@@ -239,55 +274,27 @@ fn handle_module_link(line: String, pos: usize, krate: &str) -> Option<String> {
         new.push_str(mods.as_str().replace("/", "::").trim_end_matches("::"));
     }
 
-    print_del(&line, pos);
-
     // Check if the link has become a local path
     if let Some(local) = LOCAL_PATH.captures(&new) {
-        let elem = local.name("elem").unwrap().as_str();
-        let elem2 = local.name("elem2").unwrap().as_str();
-        if elem == elem2 {
-            print_del_reason("Local path");
-            return None;
+        if local.name("elem") == local.name("elem2") {
+            return Action::Deleted {
+                line,
+                reason: "Local path",
+                pos,
+            };
         }
     }
 
-    print_add(&new);
-
-    Some(new)
+    Action::Replaced { line, new, pos }
 }
 
-fn handle_method_anchor(mut line: String, pos: usize, curr_impl: &str) -> String {
-    lazy_static! {
-        static ref METHOD_ANCHOR: Regex = Regex::new(concat!(
-            r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
-            r"#(?:method|variant|tymethod)\.(?P<additional>\S*)$",
-        ))
-        .unwrap();
-    };
+fn method_anchor(captures: Captures, line: String, pos: NonZeroUsize, curr_impl: &str) -> Action {
+    let spaces = captures.name("link_name").unwrap().as_str();
+    let additional = captures.name("additional").unwrap().as_str();
 
-    if let Some(captures) = METHOD_ANCHOR.captures(&line) {
-        let spaces = captures.name("link_name").unwrap().as_str();
-        let additional = captures.name("additional").unwrap().as_str();
-
-        print_del(&line, pos);
-        line = format!("{}{}::{}", spaces, curr_impl, additional);
-        print_add(&line);
+    Action::Replaced {
+        line,
+        new: format!("{}{}::{}", spaces, curr_impl, additional),
+        pos,
     }
-
-    line
-}
-
-/// Prints a deleted line with its line number in the original file.
-fn print_del(line: &str, pos: usize) {
-    println!("{:5}:  \"{}\"", pos, Color::Red.paint(line))
-}
-
-/// Prints a new line in green, correctly indented.
-fn print_add(line: &str) {
-    println!("        \"{}\"\n", Color::Green.paint(line))
-}
-
-/// Prints a deletion reason in yellow, correctly indented.
-fn print_del_reason(reason: &str) {
-    println!("        {}\n", Color::Yellow.paint(reason))
 }

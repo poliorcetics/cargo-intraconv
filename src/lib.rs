@@ -1,3 +1,6 @@
+mod action;
+pub use action::Action;
+
 mod transform;
 
 use argh::FromArgs;
@@ -13,7 +16,7 @@ use std::path::PathBuf;
 /// (`--apply`) to write them.
 ///
 /// If you are modifying `core` or `alloc` instead of `std`, you can pass the
-/// `-c core` (`--crate core`) flag to mark the change in the root crate.
+/// `-c core` (`--crate core`) to mark the change in the root crate.
 #[derive(FromArgs, Debug)]
 pub struct Args {
     /// root crate (one of `std`, `core` or `alloc`).
@@ -24,15 +27,15 @@ pub struct Args {
         from_str_fn(check_krate),
         default = "\"std\""
     )]
-    pub krate: &'static str,
+    krate: &'static str,
 
     /// apply the proposed changes. Does nothing for now.
     #[argh(switch, short = 'a')]
-    pub apply: bool,
+    apply: bool,
 
     /// files to search links in.
     #[argh(positional)]
-    pub paths: Vec<PathBuf>,
+    paths: Vec<PathBuf>,
 }
 
 /// Takes an `Args` instance to transform the paths it contains accordingly
@@ -40,7 +43,7 @@ pub struct Args {
 pub fn run(args: Args) {
     args.paths
         .iter()
-        .for_each(|path| transform::handle_path(path, args.krate))
+        .for_each(|path| transform::handle_path(path, args.krate, args.apply))
 }
 
 /// Check the given `krate` is exactly one of `std`, `core` or `alloc`.
@@ -64,6 +67,7 @@ mod tests {
         assert_eq!(check_krate("core"), Ok("core"));
         assert_eq!(check_krate("alloc"), Ok("alloc"));
 
+        // The error text is not what's important here.
         assert!(check_krate("Alloc").is_err());
         assert!(check_krate("sTD").is_err());
         assert!(check_krate("CoRe").is_err());
