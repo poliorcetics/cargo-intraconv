@@ -85,7 +85,7 @@ lazy_static! {
     // Will search for a doc comment link and be used to check if the two
     // elements are the same, indicating a local path.
     static ref LOCAL_PATH: Regex = Regex::new(concat!(
-        r"^\s*//[!/] ",
+        r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
         r"(?P<elem2>.*)$",
     )).unwrap();
@@ -101,18 +101,18 @@ lazy_static! {
     .unwrap();
 
     static ref COMMENT_LINK: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         r"(?P<supers>(?:\.\./)*)",
         r"(?:(?P<crate>std|core|alloc)/)?",
         r"(?P<intermediates>(?:.*/))?",
         r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
         r"(?P<elem2>.*)\.html",
-        r"(?:#(?:method|variant|tymethod)\.(?P<additional>\S*))?$",
+        r"(?:#(?:method|variant|tymethod|associatedconstant)\.(?P<additional>\S*))?$",
     ))
     .unwrap();
 
     static ref COMMENT_MODULE: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         r"(?P<supers>(?:\.\./)*)",
         r"(?:(?P<crate>std|core|alloc)/)?",
         r"(?P<mods>(?:.*?/)*)",
@@ -121,7 +121,7 @@ lazy_static! {
     .unwrap();
 
     static ref METHOD_ANCHOR: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*//[!/] \[.*?\]: )",
+        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         r"#(?:method|variant|tymethod)\.(?P<additional>\S*)$",
     ))
     .unwrap();
@@ -188,6 +188,11 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
                 continue;
             }
         }
+
+        // TODO: in `rust/library/core/src/num/mod.rs`, lines 23{29, 30} there
+        // are links that are not caught. They should be for now I don't catch
+        // links when the relevant block comes later. This is a bug and will be
+        // fixed in the future.
 
         lines.push(Action::Unchanged { line: curr_line });
     }
