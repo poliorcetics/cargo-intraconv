@@ -34,14 +34,19 @@ impl Action {
         }
     }
 
-    pub fn new_line(self) -> String {
+    /// Returns the new line (without '\n' at the end) to add.
+    ///
+    /// - `Action::Unchanged` returns its line unchanged.
+    /// - `Action::Deleted` returns an empty line.
+    /// - `Action::Replaced` returns its `new` line.
+    pub fn new_line(&self) -> &str {
         match self {
             Action::Unchanged { line } => line,
             Action::Deleted {
-                line,
+                line: _,
                 reason: _,
                 pos: _,
-            } => line,
+            } => "",
             Action::Replaced {
                 line: _,
                 new,
@@ -97,5 +102,36 @@ mod tests {
             pos: NonZeroUsize::new(3).unwrap()
         }
         .is_unchanged());
+    }
+
+    #[test]
+    fn new_line() {
+        assert_eq!(
+            Action::Unchanged {
+                line: "line".into()
+            }
+            .new_line(),
+            "line"
+        );
+
+        assert_eq!(
+            Action::Deleted {
+                line: "line".into(),
+                reason: "reason",
+                pos: NonZeroUsize::new(3).unwrap()
+            }
+            .new_line(),
+            ""
+        );
+
+        assert_eq!(
+            Action::Replaced {
+                line: "line".into(),
+                new: "new".into(),
+                pos: NonZeroUsize::new(3).unwrap()
+            }
+            .new_line(),
+            "new"
+        );
     }
 }

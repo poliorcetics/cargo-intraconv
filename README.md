@@ -5,7 +5,7 @@ intra-doc links in Rust projects when appropriate.
 
 > Note: you will need `rustdoc` 1.48 (or maybe 1.49) at least, which are not
 > available yet. This crate can still be used to help updating the documentation
-> for `rust-lang/rust` itself.
+> for `rust-lang/rust` itself and it is its intended usage right now.
 
 ## What are intra-doc links ?
 
@@ -37,6 +37,22 @@ Changing all the existing links can be tedious and can be automated. This crate
 is a proof-of-concept of the feasibility and it is my hope to include a similar
 tool in `cargo fix` soon. The goal of this crate is to help you while the
 `cargo fix` version is not available.
+
+## Usage
+
+By default the binary produced by the crate will not modify the given files,
+only show what would change:
+
+```shell
+$ cargo intraconv path/to/std/file.rs
+
+$ cargo intraconv path/to/core/file.rs -c core # Specifying the root crate
+
+$ cargo intraconv path/to/std/file.rs -a # Applying the changes
+```
+
+It is possible to give multiple paths to files. Note that directories will not
+work.
 
 ## Known issues
 
