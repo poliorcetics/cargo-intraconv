@@ -48,7 +48,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1ba68f4276a778591e36a0c348a269888f3a177c8d2054969389e3b59611ff5"
 
 [[package]]
-name = "cargo-intra-converter"
+name = "cargo-intraconv"
 version = "0.1.0"
 dependencies = [
  "ansi_term",

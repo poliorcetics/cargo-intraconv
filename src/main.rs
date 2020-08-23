@@ -1,3 +1,3 @@
 fn main() {
-    cargo_intra_converter::run(argh::from_env())
+    cargo_intraconv::run(argh::from_env())
 }

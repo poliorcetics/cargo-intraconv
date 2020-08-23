@@ -1,5 +1,5 @@
 [package]
-name = "cargo-intra-converter"
+name = "cargo-intraconv"
 version = "0.1.0"
 authors = ["Alexis Bourget <alexis.bourget@gmail.com>"]
 edition = "2018"
