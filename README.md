@@ -1,11 +1,13 @@
 # Cargo intraconv
 
 `cargo-intraconv` is a simple helper which will transform Markdown links to
-intra-doc links in Rust projects when appropriate.
+[intra-doc links] in Rust projects when appropriate.
 
-> Note: you will need `rustdoc` 1.48 (or maybe 1.49) at least, which are not
-> available yet. This crate can still be used to help updating the documentation
-> for `rust-lang/rust` itself and it is its intended usage right now.
+> Note: you will need you need nightly rustdoc or to wait until stabilization.
+> This crate can still be used to help updating the documentation for
+> `rust-lang/rust` itself and it is its intended usage right now.
+
+[intra-doc links]: https://doc.rust-lang.org/nightly/rustdoc/unstable-features.html#linking-to-items-by-type
 
 ## What are intra-doc links ?
 
@@ -59,7 +61,7 @@ work.
 Both intra-doc links and this crate have several known issues, most of which
 should be adressed in future versions of either the crate or Rust itself.
 
-For issues about intra-doc links you should look-up the issues at `rust-lang/rust`.
+For issues about intra-doc links you should look-up [the issues at `rust-lang/rust`].
 
 For issues about this crate, here are a few:
 
@@ -67,6 +69,8 @@ For issues about this crate, here are a few:
     right now, this is a bug and will be fixed in a future version.
   - `[Item](link)` links are not transformed. This is also a bug and will be
     fixed in a future version.
+
+[the issues at `rust-lang/rust`]: https://github.com/rust-lang/rust/issues?q=is%3Aopen+label%3AA-intra-doc-links+label%3AC-bug
 
 ## Drawbacks
 
