@@ -92,10 +92,10 @@ lazy_static! {
 
     static ref IMPL_START: Regex = Regex::new(concat!(
         r"^(?P<spaces>\s*)",
-        r"(?:impl|(?:pub(?:\(.+\))? )?trait)",
-        r"(?:<.*>)? ",
+        r"(?:pub(?:\(.+\))? )?",
+        r"(?:impl|trait)(?:<.*?>)? ",
         r"(?:.* for )?",
-        r"(?P<type>\S+)",
+        r"(?P<type>[\w]+)",
         r"(?:<.*>)?",
     ))
     .unwrap();
