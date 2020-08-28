@@ -1,6 +1,6 @@
 use crate::Action;
-use lazy_static::lazy_static;
-use regex::{Captures, Regex};
+use crate::consts;
+use regex::Captures;
 use std::fmt::Write;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead as _, BufReader, Read, Write as _};
@@ -74,61 +74,8 @@ pub fn handle_path(path: &PathBuf, krate: &str, apply: bool) {
     };
 }
 
-lazy_static! {
-    // An empty doc comment.
-    static ref EMPTY_DOC_COMMENT: Regex = Regex::new(r"^\s*//[!/]$").unwrap();
-
-    // Used to detect doc comment lines, empty or not. This is the same regex
-    // as `EMPTY_DOC_COMMENT` without the ending `$`.
-    static ref IS_DOC_COMMENT_LINE: Regex = Regex::new(r"^\s*//[!/]").unwrap();
-
-    // Will search for a doc comment link and be used to check if the two
-    // elements are the same, indicating a local path.
-    static ref LOCAL_PATH: Regex = Regex::new(concat!(
-        r"^\s*(?://[!/] )?",
-        r"\[`?(?P<elem>.*?)`?\]: ",
-        r"(?P<elem2>.*)$",
-    )).unwrap();
-
-    static ref IMPL_START: Regex = Regex::new(concat!(
-        r"^(?P<spaces>\s*)",
-        r"(?:pub(?:\(.+\))? )?",
-        r"(?:impl|trait)(?:<.*?>)? ",
-        r"(?:.* for )?",
-        r"(?P<type>[\w]+)",
-        r"(?:<.*>)?",
-    ))
-    .unwrap();
-
-    static ref COMMENT_LINK: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"(?P<supers>(?:\.\./)*)",
-        r"(?:(?P<crate>std|core|alloc)/)?",
-        r"(?P<intermediates>(?:.*/))?",
-        r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
-        r"(?P<elem2>.*)\.html",
-        r"(?:#(?:method|variant|tymethod|associatedconstant)\.(?P<additional>\S*))?$",
-    ))
-    .unwrap();
-
-    static ref COMMENT_MODULE: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"(?P<supers>(?:\.\./)*)",
-        r"(?:(?P<crate>std|core|alloc)/)?",
-        r"(?P<mods>(?:.*?/)*)",
-        r"index\.html$",
-    ))
-    .unwrap();
-
-    static ref METHOD_ANCHOR: Regex = Regex::new(concat!(
-        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"#(?:method|variant|tymethod)\.(?P<additional>\S*)$",
-    ))
-    .unwrap();
-}
-
 fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Action>> {
-    let mut lines = Vec::<Action>::new();
+    let mut lines = Vec::new();
     let mut curr_impl = None;
     let mut end_impl = String::new();
 
@@ -138,15 +85,15 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
         let curr_line = curr_line?.trim_end().to_string();
 
         if let Some(Action::Unchanged { line: prev_line }) = lines.last() {
-            if EMPTY_DOC_COMMENT.is_match(prev_line) {
-                if EMPTY_DOC_COMMENT.is_match(&curr_line) {
+            if consts::EMPTY_DOC_COMMENT.is_match(prev_line) {
+                if consts::EMPTY_DOC_COMMENT.is_match(&curr_line) {
                     lines.push(Action::Deleted {
                         line: curr_line,
                         reason: "Consecutives empty comment lines",
                         pos,
                     });
                     continue;
-                } else if !IS_DOC_COMMENT_LINE.is_match(&curr_line) {
+                } else if !consts::IS_DOC_COMMENT_LINE.is_match(&curr_line) {
                     let i = lines.len() - 1;
                     lines[i] = Action::Deleted {
                         line: prev_line.clone(),
@@ -160,17 +107,17 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
             }
         }
 
-        if let Some(captures) = COMMENT_LINK.captures(&curr_line) {
+        if let Some(captures) = consts::ITEM_LINK.captures(&curr_line) {
             lines.push(comment_link(captures, curr_line.clone(), pos, krate));
             continue;
         }
 
-        if let Some(captures) = COMMENT_MODULE.captures(&curr_line) {
+        if let Some(captures) = consts::MODULE_LINK.captures(&curr_line) {
             lines.push(module_link(captures, curr_line.clone(), pos, krate));
             continue;
         }
 
-        if let Some(captures) = IMPL_START.captures(&curr_line) {
+        if let Some(captures) = consts::IMPL_START.captures(&curr_line) {
             end_impl.clear();
             end_impl.push_str(captures.name("spaces").unwrap().as_str());
             end_impl.push('}');
@@ -183,7 +130,7 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
         }
 
         if let Some(ref curr_impl) = curr_impl {
-            if let Some(captures) = METHOD_ANCHOR.captures(&curr_line) {
+            if let Some(captures) = consts::METHOD_ANCHOR.captures(&curr_line) {
                 lines.push(method_anchor(captures, curr_line.clone(), pos, curr_impl));
                 continue;
             }
@@ -241,7 +188,7 @@ fn comment_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str
     }
 
     // Check if the link has become a local path
-    if let Some(local) = LOCAL_PATH.captures(&new) {
+    if let Some(local) = consts::LOCAL_PATH.captures(&new) {
         if local.name("elem") == local.name("elem2") {
             return Action::Deleted {
                 line,
@@ -280,7 +227,7 @@ fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str)
     }
 
     // Check if the link has become a local path
-    if let Some(local) = LOCAL_PATH.captures(&new) {
+    if let Some(local) = consts::LOCAL_PATH.captures(&new) {
         if local.name("elem") == local.name("elem2") {
             return Action::Deleted {
                 line,
