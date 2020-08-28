@@ -3,10 +3,10 @@ use regex::Regex;
 
 lazy_static::lazy_static! {
     /// An empty doc comment.
-    pub static ref EMPTY_DOC_COMMENT: Regex = Regex::new(r"^\s*//[!/]$").unwrap();
+    pub static ref EMPTY_DOC_COMMENT: Regex = Regex::new(r"^\s*//[!/]\n$").unwrap();
 
     /// Used to detect doc comment lines, empty or not. This is the same regex
-    /// as `EMPTY_DOC_COMMENT` without the ending `$`.
+    /// as `EMPTY_DOC_COMMENT` without the ending `\n$`.
     pub static ref IS_DOC_COMMENT_LINE: Regex = Regex::new(r"^\s*//[!/]").unwrap();
 
     /// Will search for a doc comment link and be used to check if the two
@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
     pub static ref LOCAL_PATH: Regex = Regex::new(concat!(
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
-        r"(?P<elem2>.*)$",
+        r"(?P<elem2>.*)\n$",
     )).unwrap();
 
     /// Start of a block that can be used to reference to `Self`.
@@ -24,7 +24,7 @@ lazy_static::lazy_static! {
         r"(?:impl|trait)(?:<.*?>)? ",
         r"(?:.* for )?",
         r"(?P<type>[\w]+)",
-        r"(?:<.*>)?",
+        r"(?:<.*>)?\n",
     ))
     .unwrap();
 
@@ -36,7 +36,7 @@ lazy_static::lazy_static! {
         r"(?P<intermediates>(?:.*/))?",
         r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
         r"(?P<elem2>.*)\.html",
-        r"(?:#(?:method|variant|tymethod|associatedconstant)\.(?P<additional>\S*))?$",
+        r"(?:#(?:method|variant|tymethod|associatedconstant)\.(?P<additional>\S*))?\n$",
     ))
     .unwrap();
 
@@ -46,7 +46,7 @@ lazy_static::lazy_static! {
         r"(?P<supers>(?:\.\./)*)",
         r"(?:(?P<crate>std|core|alloc)/)?",
         r"(?P<mods>(?:.*?/)*)",
-        r"index\.html$",
+        r"index\.html\n$",
     ))
     .unwrap();
 
@@ -55,7 +55,7 @@ lazy_static::lazy_static! {
     /// This needs context for `Self` to be correctly inserted.
     pub static ref METHOD_ANCHOR: Regex = Regex::new(concat!(
         r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"#(?:method|variant|tymethod)\.(?P<additional>\S*)$",
+        r"#(?:method|variant|tymethod)\.(?P<additional>\S*)\n$",
     ))
     .unwrap();
 }

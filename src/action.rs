@@ -1,6 +1,5 @@
 use ansi_term::Color;
 use std::fmt;
-use std::num::NonZeroUsize;
 
 /// The action taken for a particular line of text.
 ///
@@ -16,7 +15,7 @@ pub enum Action {
     Deleted {
         line: String,
         reason: &'static str,
-        pos: NonZeroUsize,
+        pos: usize,
     },
 
     /// `line` was replaced by a `new` one. As with `Deleted`, the position is
@@ -24,7 +23,7 @@ pub enum Action {
     Replaced {
         line: String,
         new: String,
-        pos: NonZeroUsize,
+        pos: usize,
     },
 }
 
@@ -62,20 +61,20 @@ impl Action {
 impl fmt::Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Action::Unchanged { line } => write!(f, "{}", line),
+            Action::Unchanged { line } => write!(f, "{}", line.trim_end()),
             Action::Deleted { line, reason, pos } => write!(
                 f,
                 "{:5}:  \"{}\"\n        {}",
                 pos,
-                Color::Red.paint(line),
-                Color::Yellow.paint(*reason)
+                Color::Red.paint(line.trim_end()),
+                Color::Yellow.paint(reason.trim_end())
             ),
             Action::Replaced { line, new, pos } => write!(
                 f,
                 "{:5}:  \"{}\"\n        \"{}\"",
                 pos,
-                Color::Red.paint(line),
-                Color::Green.paint(new)
+                Color::Red.paint(line.trim_end()),
+                Color::Green.paint(new.trim_end())
             ),
         }
     }
@@ -95,14 +94,14 @@ mod tests {
         assert!(!Action::Deleted {
             line: "line".into(),
             reason: "reason",
-            pos: NonZeroUsize::new(3).unwrap()
+            pos: 3,
         }
         .is_unchanged());
 
         assert!(!Action::Replaced {
             line: "line".into(),
             new: "new".into(),
-            pos: NonZeroUsize::new(3).unwrap()
+            pos: 3,
         }
         .is_unchanged());
     }
@@ -121,7 +120,7 @@ mod tests {
             Action::Deleted {
                 line: "line".into(),
                 reason: "reason",
-                pos: NonZeroUsize::new(3).unwrap()
+                pos: 3,
             }
             .as_new_line(),
             ""
@@ -131,7 +130,7 @@ mod tests {
             Action::Replaced {
                 line: "line".into(),
                 new: "new".into(),
-                pos: NonZeroUsize::new(3).unwrap()
+                pos: 3,
             }
             .as_new_line(),
             "new"

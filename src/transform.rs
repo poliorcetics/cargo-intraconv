@@ -4,7 +4,6 @@ use regex::Captures;
 use std::fmt::Write;
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead as _, BufReader, Read, Write as _};
-use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
 /// Find the elements to transform inside the file described by `path`. The root
@@ -81,8 +80,8 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
 
     for (raw_pos, curr_line) in file.lines().enumerate() {
         // SAFETY: `raw_pos >= 0` so `raw_pos + 1 >= 1`.
-        let pos = unsafe { NonZeroUsize::new_unchecked(raw_pos + 1) };
-        let curr_line = curr_line?.trim_end().to_string();
+        let pos = raw_pos + 1;
+        let curr_line = curr_line?;
 
         if let Some(Action::Unchanged { line: prev_line }) = lines.last() {
             if consts::EMPTY_DOC_COMMENT.is_match(prev_line) {
@@ -100,7 +99,7 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
                         reason: "Empty comment line at the end of a comment",
                         // SAFETY: for this to happen there must be a previous
                         // line so `raw_pos` is at least 1.
-                        pos: unsafe { NonZeroUsize::new_unchecked(raw_pos) },
+                        pos: raw_pos,
                     };
                     continue;
                 }
@@ -147,7 +146,7 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
     Ok(lines)
 }
 
-fn comment_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str) -> Action {
+fn comment_link(captures: Captures, line: String, pos: usize, krate: &str) -> Action {
     // Preparing the new line, most intra-doc comments will fit in 64 char.
     let mut new = String::with_capacity(64);
 
@@ -201,7 +200,7 @@ fn comment_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str
     Action::Replaced { line, new, pos }
 }
 
-fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str) -> Action {
+fn module_link(captures: Captures, line: String, pos: usize, krate: &str) -> Action {
     // Preparing the new line, most intra-doc comments will fit in 64 char.
     let mut new = String::with_capacity(64);
 
@@ -240,7 +239,7 @@ fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str)
     Action::Replaced { line, new, pos }
 }
 
-fn method_anchor(captures: Captures, line: String, pos: NonZeroUsize, curr_impl: &str) -> Action {
+fn method_anchor(captures: Captures, line: String, pos: usize, curr_impl: &str) -> Action {
     let spaces = captures.name("link_name").unwrap().as_str();
     let additional = captures.name("additional").unwrap().as_str();
 
