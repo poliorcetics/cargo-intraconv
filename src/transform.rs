@@ -3,7 +3,7 @@ use lazy_static::lazy_static;
 use regex::{Captures, Regex};
 use std::fmt::Write;
 use std::fs::{File, OpenOptions};
-use std::io::{self, BufRead, BufReader, Read, Write as _};
+use std::io::{self, BufRead as _, BufReader, Read, Write as _};
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
@@ -48,7 +48,7 @@ pub fn handle_path(path: &PathBuf, krate: &str, apply: bool) {
             println!("{}\n", l);
         }
         if apply {
-            write!(string, "{}\n", l.new_line()).unwrap();
+            write!(string, "{}\n", l.as_new_line()).unwrap();
         }
     }
 

@@ -2,8 +2,11 @@ use ansi_term::Color;
 use std::fmt;
 use std::num::NonZeroUsize;
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 /// The action taken for a particular line of text.
+///
+/// This action can then be displayed to show diffs with the `Display` impl or
+/// saved somewhere else through the `as_new_line` method.
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum Action {
     /// `line` was unchanged and no specific action was taken.
     Unchanged { line: String },
@@ -39,7 +42,7 @@ impl Action {
     /// - `Action::Unchanged` returns its line unchanged.
     /// - `Action::Deleted` returns an empty line.
     /// - `Action::Replaced` returns its `new` line.
-    pub fn new_line(&self) -> &str {
+    pub fn as_new_line(&self) -> &str {
         match self {
             Action::Unchanged { line } => line,
             Action::Deleted {
@@ -105,12 +108,12 @@ mod tests {
     }
 
     #[test]
-    fn new_line() {
+    fn as_new_line() {
         assert_eq!(
             Action::Unchanged {
                 line: "line".into()
             }
-            .new_line(),
+            .as_new_line(),
             "line"
         );
 
@@ -120,7 +123,7 @@ mod tests {
                 reason: "reason",
                 pos: NonZeroUsize::new(3).unwrap()
             }
-            .new_line(),
+            .as_new_line(),
             ""
         );
 
@@ -130,7 +133,7 @@ mod tests {
                 new: "new".into(),
                 pos: NonZeroUsize::new(3).unwrap()
             }
-            .new_line(),
+            .as_new_line(),
             "new"
         );
     }
