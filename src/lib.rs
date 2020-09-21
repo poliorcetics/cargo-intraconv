@@ -1,8 +1,10 @@
-mod action;
-use action::Action;
+// mod action;
+// use action::Action;
 
-mod consts;
-mod transform;
+// mod consts;
+pub mod new;
+// mod transform;
+// pub mod updater;
 
 use argh::FromArgs;
 use std::path::PathBuf;
@@ -26,9 +28,9 @@ pub struct Args {
         long = "crate",
         short = 'c',
         from_str_fn(check_krate),
-        default = "\"std\""
+        default = "\"std\".into()"
     )]
-    krate: &'static str,
+    krate: String,
 
     /// apply the proposed changes. Does nothing for now.
     #[argh(switch, short = 'a')]
@@ -41,19 +43,17 @@ pub struct Args {
 
 /// Takes an `Args` instance to transform the paths it contains accordingly
 /// with its stored parameters.
-pub fn run(args: Args) {
-    args.paths
-        .iter()
-        .for_each(|path| transform::handle_path(path, args.krate, args.apply))
-}
+// pub fn run(args: Args) {
+//     args.paths
+//         .iter()
+//         .for_each(|path| transform::handle_path(path, args.krate, args.apply))
+// }
 
 /// Check the given `krate` is exactly one of `std`, `core` or `alloc`.
 /// In any other case it will return an error message.
-fn check_krate(krate: &str) -> Result<&'static str, String> {
+fn check_krate(krate: &str) -> Result<String, String> {
     match krate {
-        "std" => Ok("std"),
-        "core" => Ok("core"),
-        "alloc" => Ok("alloc"),
+        "std" | "core" | "alloc" => Ok(krate.into()),
         _ => Err("Valid crate options are `std`, `core` and `alloc`.".into()),
     }
 }
@@ -64,9 +64,9 @@ mod tests {
 
     #[test]
     fn test_check_krate() {
-        assert_eq!(check_krate("std"), Ok("std"));
-        assert_eq!(check_krate("core"), Ok("core"));
-        assert_eq!(check_krate("alloc"), Ok("alloc"));
+        assert_eq!(check_krate("std"), Ok("std".into()));
+        assert_eq!(check_krate("core"), Ok("core".into()));
+        assert_eq!(check_krate("alloc"), Ok("alloc".into()));
 
         // The error text is not what's important here.
         assert!(check_krate("Alloc").is_err());

@@ -1,7 +1,7 @@
-use lazy_static;
+use lazy_static::lazy_static;
 use regex::Regex;
 
-lazy_static::lazy_static! {
+lazy_static! {
     /// An empty doc comment.
     pub static ref EMPTY_DOC_COMMENT: Regex = Regex::new(r"^\s*//[!/]\n$").unwrap();
 
@@ -14,7 +14,7 @@ lazy_static::lazy_static! {
     pub static ref LOCAL_PATH: Regex = Regex::new(concat!(
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
-        r"(?P<elem2>.*)\n$",
+        r"(?P<elem2>.*)$",
     )).unwrap();
 
     /// Start of a block that can be used to reference to `Self`.

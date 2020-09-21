@@ -1,5 +1,5 @@
-use crate::Action;
 use crate::consts;
+use crate::Action;
 use regex::Captures;
 use std::fmt::Write;
 use std::fs::{File, OpenOptions};
@@ -79,7 +79,6 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
     let mut end_impl = String::new();
 
     for (raw_pos, curr_line) in file.lines().enumerate() {
-        // SAFETY: `raw_pos >= 0` so `raw_pos + 1 >= 1`.
         let pos = raw_pos + 1;
         let curr_line = curr_line?;
 
@@ -97,8 +96,6 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
                     lines[i] = Action::Deleted {
                         line: prev_line.clone(),
                         reason: "Empty comment line at the end of a comment",
-                        // SAFETY: for this to happen there must be a previous
-                        // line so `raw_pos` is at least 1.
                         pos: raw_pos,
                     };
                     continue;
