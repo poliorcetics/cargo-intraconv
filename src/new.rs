@@ -74,6 +74,18 @@ pub fn check(line: String, ctx: &Context) -> String {
     )
     .unwrap();
 
+    let module_link = Regex::new(
+        &[
+            r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+            r"(?P<supers>(?:\.\./)*)",
+            &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
+            r"(?P<mods>(?:.*?/)*)",
+            r"index\.html\n$",
+        ]
+        .join(""),
+    )
+    .unwrap();
+
     // Handling (possibly complex) regular links.
     let new = if let Some(captures) = item_link.captures(&line) {
         let link_name = captures.name("link_name").unwrap().as_str();
@@ -88,6 +100,8 @@ pub fn check(line: String, ctx: &Context) -> String {
             // 'crate', not the crate name in this case.
             new.push_str("crate::");
         } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+            // The path is not explicitely contained in the crate but has some
+            // 'super' elements.
             let count = supers.matches('/').count();
             // This way we won't allocate a string only to immediately drop it.
             for _ in 0..count {
@@ -96,10 +110,12 @@ pub fn check(line: String, ctx: &Context) -> String {
         }
 
         // Intermediates element like a path through modules.
+        // In the case of a path without 'super'
         if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
             if intermediates.starts_with("http") {
                 return line;
             }
+
             if intermediates != "./" {
                 new.push_str(&intermediates.replace("/", "::"));
             }
@@ -120,6 +136,44 @@ pub fn check(line: String, ctx: &Context) -> String {
         new
     } else {
         line
+    };
+
+    let new = if let Some(captures) = module_link.captures(&new) {
+        let link_name = captures.name("link_name").unwrap().as_str();
+
+        let mut new = String::with_capacity(64);
+        new.push_str(link_name);
+
+        // Handling the start of the path.
+        if let Some(_) = captures.name("crate") {
+            // This a path contained in the crate: the start of a full path is
+            // 'crate', not the crate name in this case.
+            new.push_str("crate::");
+        } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+            // The path is not explicitely contained in the crate but has some
+            // 'super' elements.
+            let count = supers.matches('/').count();
+            // This way we won't allocate a string only to immediately drop it.
+            for _ in 0..count {
+                new.push_str("super::");
+            }
+        }
+
+        // Handling the modules names themselves.
+        if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
+            // If the link is simply `index.html` the line is removed.
+            if mods.is_empty() {
+                return "".into();
+            }
+
+            new.push_str(mods.replace("/", "::").trim_end_matches("::"));
+        }
+
+        new.push('\n');
+
+        new
+    } else {
+        new
     };
 
     // Handling local paths.
@@ -147,237 +201,400 @@ mod tests {
         };
     }
 
-    #[test]
-    fn code_line_is_unchanged() {
-        let line = "let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+    mod unchanged_lines {
+        use super::*;
+
+        #[test]
+        fn code_line_is_unchanged() {
+            let line = "let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn normal_comment_line_is_unchanged() {
+            let line = "// let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn normal_doc_comment_line_is_unchanged() {
+            let line = "/// let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn normal_header_doc_comment_line_is_unchanged() {
+            let line = "//! let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn indentation_is_unchanged() {
+            let line = "  //! let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    //! let res = a + b;\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn http_link_is_ignored() {
+            let line = "/// [`String`]: http://www.example.com/index.html#section\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    /// [`String`]: https://www.example.com/index.html#section\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
     }
 
-    #[test]
-    fn normal_comment_line_is_unchanged() {
-        let line = "// let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+    mod paths {
+        use super::*;
+
+        #[test]
+        fn local_path_is_deleted() {
+            let line = "/// [`String`]: String\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "    /// [String]: String\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "[`String`]: String\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "    [String]: String\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn long_path_is_unchanged() {
+            let line = "/// [`String`]: string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    /// [String]: string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "[`String`]: string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    [String]: string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn full_path_is_unchanged() {
+            let line = "/// [`String`]: ::std::string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    /// [String]: ::std::string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "[`String`]: ::std::string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+
+            let line = "    [String]: ::std::string::String\n";
+            assert_eq!(line, check(line.into(), &STD_CTX));
+        }
     }
 
-    #[test]
-    fn normal_doc_comment_line_is_unchanged() {
-        let line = "/// let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+    mod item_tests {
+        use super::*;
+
+        #[test]
+        fn local_link_is_deleted() {
+            let line = "/// [`String`]: struct.String.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "    /// [String]: struct.String.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "[`String`]: struct.String.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+
+            let line = "    [String]: struct.String.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+        }
+
+        #[test]
+        fn long_link_is_transformed() {
+            let line = "/// [`String`]: string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [String]: string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`String`]: string/struct.String.html\n";
+            assert_eq!("[`String`]: string::String\n", check(line.into(), &STD_CTX));
+
+            let line = "    [String]: string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
+
+        #[test]
+        fn full_link_is_transformed_crate() {
+            let line = "/// [`String`]: std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [String]: std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`String`]: std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    [String]: std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
+
+        #[test]
+        fn full_link_is_transformed_crate_over_super() {
+            let line = "/// [`String`]: ../../std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [String]: ../../std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`String`]: ../../std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    [String]: ../../std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: crate::string::String\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
+
+        #[test]
+        fn full_link_is_transformed_not_crate() {
+            let line = "/// [`String`]: std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: std::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "    /// [String]: std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: std::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "[`String`]: std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: std::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "    [String]: std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: std::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+        }
+
+        #[test]
+        fn full_link_is_transformed_super() {
+            let line = "/// [`String`]: ../../string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: super::super::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "    /// [String]: ../../string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: super::super::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "[`String`]: ../../string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: super::super::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+
+            let line = "    [String]: ../../string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: super::super::string::String\n",
+                check(line.into(), &CORE_CTX)
+            );
+        }
     }
 
-    #[test]
-    fn normal_header_doc_comment_line_is_unchanged() {
-        let line = "//! let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
-    }
+    mod module_tests {
+        use super::*;
 
-    #[test]
-    fn indentation_is_unchanged() {
-        let line = "  //! let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+        #[test]
+        fn local_link_is_deleted() {
+            let line = "/// [`string`]: string/index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-        let line = "    //! let res = a + b;\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
-    }
+            let line = "    /// [string]: string/index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-    #[test]
-    fn local_path_is_deleted() {
-        let line = "/// [`String`]: String\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+            let line = "[`string`]: string/index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-        let line = "    /// [String]: String\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+            let line = "    [string]: string/index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-        let line = "[`String`]: String\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+            let line = "/// [`string`]: index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-        let line = "    [String]: String\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
-    }
+            let line = "    /// [string]: index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-    #[test]
-    fn local_link_is_deleted() {
-        let line = "/// [`String`]: struct.String.html\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+            let line = "[`string`]: index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
 
-        let line = "    /// [String]: struct.String.html\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+            let line = "    [string]: index.html\n";
+            assert_eq!("", check(line.into(), &STD_CTX));
+        }
 
-        let line = "[`String`]: struct.String.html\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
+        #[test]
+        fn long_link_is_transformed() {
+            let line = "/// [`string`]: module/string/index.html\n";
+            assert_eq!(
+                "/// [`string`]: module::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "    [String]: struct.String.html\n";
-        assert_eq!("", check(line.into(), &STD_CTX));
-    }
+            let line = "    /// [string]: module/string/index.html\n";
+            assert_eq!(
+                "    /// [string]: module::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-    #[test]
-    fn http_link_is_ignored() {
-        let line = "/// [`String`]: http://www.example.com/index.html#section\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+            let line = "[`string`]: module/string/index.html\n";
+            assert_eq!("[`string`]: module::string\n", check(line.into(), &STD_CTX));
 
-        let line = "    /// [`String`]: https://www.example.com/index.html#section\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
-    }
+            let line = "    [string]: module/string/index.html\n";
+            assert_eq!(
+                "    [string]: module::string\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
 
-    #[test]
-    fn long_path_is_unchanged() {
-        let line = "/// [`String`]: string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+        #[test]
+        fn full_link_is_transformed_crate() {
+            let line = "/// [`string`]: std/string/index.html\n";
+            assert_eq!(
+                "/// [`string`]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "    /// [String]: string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+            let line = "    /// [string]: std/string/index.html\n";
+            assert_eq!(
+                "    /// [string]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "[`String`]: string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+            let line = "[`string`]: std/string/index.html\n";
+            assert_eq!("[`string`]: crate::string\n", check(line.into(), &STD_CTX));
 
-        let line = "    [String]: string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
-    }
+            let line = "    [string]: std/string/index.html\n";
+            assert_eq!(
+                "    [string]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
 
-    #[test]
-    fn long_link_is_transformed() {
-        let line = "/// [`String`]: string/struct.String.html\n";
-        assert_eq!(
-            "/// [`String`]: string::String\n",
-            check(line.into(), &STD_CTX)
-        );
+        #[test]
+        fn full_link_is_transformed_crate_over_super() {
+            let line = "/// [`string`]: ../../std/string/index.html\n";
+            assert_eq!(
+                "/// [`string`]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "    /// [String]: string/struct.String.html\n";
-        assert_eq!(
-            "    /// [String]: string::String\n",
-            check(line.into(), &STD_CTX)
-        );
+            let line = "    /// [string]: ../../std/string/index.html\n";
+            assert_eq!(
+                "    /// [string]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "[`String`]: string/struct.String.html\n";
-        assert_eq!("[`String`]: string::String\n", check(line.into(), &STD_CTX));
+            let line = "[`string`]: ../../std/string/index.html\n";
+            assert_eq!("[`string`]: crate::string\n", check(line.into(), &STD_CTX));
 
-        let line = "    [String]: string/struct.String.html\n";
-        assert_eq!(
-            "    [String]: string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-    }
+            let line = "    [string]: ../../std/string/index.html\n";
+            assert_eq!(
+                "    [string]: crate::string\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
 
-    #[test]
-    fn full_path_is_unchanged() {
-        let line = "/// [`String`]: ::std::string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+        #[test]
+        fn full_link_is_transformed_not_crate() {
+            let line = "/// [`string`]: std/string/index.html\n";
+            assert_eq!(
+                "/// [`string`]: std::string\n",
+                check(line.into(), &CORE_CTX)
+            );
 
-        let line = "    /// [String]: ::std::string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+            let line = "    /// [string]: std/string/index.html\n";
+            assert_eq!(
+                "    /// [string]: std::string\n",
+                check(line.into(), &CORE_CTX)
+            );
 
-        let line = "[`String`]: ::std::string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
+            let line = "[`string`]: std/string/index.html\n";
+            assert_eq!("[`string`]: std::string\n", check(line.into(), &CORE_CTX));
 
-        let line = "    [String]: ::std::string::String\n";
-        assert_eq!(line, check(line.into(), &STD_CTX));
-    }
+            let line = "    [string]: std/string/index.html\n";
+            assert_eq!("    [string]: std::string\n", check(line.into(), &CORE_CTX));
+        }
 
-    #[test]
-    fn full_link_is_transformed_std() {
-        let line = "/// [`String`]: std/string/struct.String.html\n";
-        assert_eq!(
-            "/// [`String`]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
+        #[test]
+        fn full_link_is_transformed_super() {
+            let line = "/// [`string`]: ../../string/index.html\n";
+            assert_eq!(
+                "/// [`string`]: super::super::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "    /// [String]: std/string/struct.String.html\n";
-        assert_eq!(
-            "    /// [String]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
+            let line = "    /// [string]: ../../string/index.html\n";
+            assert_eq!(
+                "    /// [string]: super::super::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "[`String`]: std/string/struct.String.html\n";
-        assert_eq!(
-            "[`String`]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
+            let line = "[`string`]: ../../string/index.html\n";
+            assert_eq!(
+                "[`string`]: super::super::string\n",
+                check(line.into(), &STD_CTX)
+            );
 
-        let line = "    [String]: std/string/struct.String.html\n";
-        assert_eq!(
-            "    [String]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-    }
-
-    #[test]
-    fn full_link_is_transformed_std_over_super() {
-        let line = "/// [`String`]: ../../std/string/struct.String.html\n";
-        assert_eq!(
-            "/// [`String`]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-
-        let line = "    /// [String]: ../../std/string/struct.String.html\n";
-        assert_eq!(
-            "    /// [String]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-
-        let line = "[`String`]: ../../std/string/struct.String.html\n";
-        assert_eq!(
-            "[`String`]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-
-        let line = "    [String]: ../../std/string/struct.String.html\n";
-        assert_eq!(
-            "    [String]: crate::string::String\n",
-            check(line.into(), &STD_CTX)
-        );
-    }
-
-    #[test]
-    fn full_link_is_transformed_core() {
-        let line = "/// [`String`]: std/string/struct.String.html\n";
-        assert_eq!(
-            "/// [`String`]: std::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "    /// [String]: std/string/struct.String.html\n";
-        assert_eq!(
-            "    /// [String]: std::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "[`String`]: std/string/struct.String.html\n";
-        assert_eq!(
-            "[`String`]: std::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "    [String]: std/string/struct.String.html\n";
-        assert_eq!(
-            "    [String]: std::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-    }
-
-    #[test]
-    fn full_link_is_transformed_super() {
-        let line = "/// [`String`]: ../../string/struct.String.html\n";
-        assert_eq!(
-            "/// [`String`]: super::super::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "    /// [String]: ../../string/struct.String.html\n";
-        assert_eq!(
-            "    /// [String]: super::super::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "[`String`]: ../../string/struct.String.html\n";
-        assert_eq!(
-            "[`String`]: super::super::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
-
-        let line = "    [String]: ../../string/struct.String.html\n";
-        assert_eq!(
-            "    [String]: super::super::string::String\n",
-            check(line.into(), &CORE_CTX)
-        );
+            let line = "    [string]: ../../string/index.html\n";
+            assert_eq!(
+                "    [string]: super::super::string\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
     }
 }

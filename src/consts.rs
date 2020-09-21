@@ -45,7 +45,7 @@ lazy_static! {
         r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         r"(?P<supers>(?:\.\./)*)",
         r"(?:(?P<crate>std|core|alloc)/)?",
-        r"(?P<mods>(?:.*?/)*)",
+        r"(?P<mods>(?:.*?/)+)",
         r"index\.html\n$",
     ))
     .unwrap();
