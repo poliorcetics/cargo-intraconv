@@ -40,16 +40,7 @@ lazy_static! {
     )).unwrap();
 
     /// Line that is a markdown link to a Rust item.
-    static ref ITEM_LINK: Regex = Regex::new(&[
-        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"(?P<supers>(?:\.\./)*)",
-        r"(?:(?P<crate>std|core|alloc)/)?",
-        r"(?P<intermediates>(?:.*/))?",
-        &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
-        r"(?P<elem>.*)\.html",
-        &format!(r"(?:#(?:{})\.(?P<additional>\S*))?\n$", ITEM_TYPES.join("|")),
-    ].join(""))
-    .unwrap();
+    static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
 }
 
 pub struct Context {
@@ -80,11 +71,16 @@ pub fn check(line: String, ctx: &Context) -> String {
             r"(?P<supers>(?:\.\./)*)",
             &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
             r"(?P<mods>(?:.*?/)*)",
-            r"index\.html\n$",
+            r"index\.html",
+            r"(?P<section>#.+)?\n$",
         ]
         .join(""),
     )
     .unwrap();
+
+    if HTTP_LINK.is_match(&line) {
+        return line;
+    }
 
     // Handling (possibly complex) regular links.
     let new = if let Some(captures) = item_link.captures(&line) {
@@ -112,10 +108,6 @@ pub fn check(line: String, ctx: &Context) -> String {
         // Intermediates element like a path through modules.
         // In the case of a path without 'super'
         if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
-            if intermediates.starts_with("http") {
-                return line;
-            }
-
             if intermediates != "./" {
                 new.push_str(&intermediates.replace("/", "::"));
             }
@@ -140,6 +132,7 @@ pub fn check(line: String, ctx: &Context) -> String {
 
     let new = if let Some(captures) = module_link.captures(&new) {
         let link_name = captures.name("link_name").unwrap().as_str();
+        let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
 
         let mut new = String::with_capacity(64);
         new.push_str(link_name);
@@ -162,13 +155,14 @@ pub fn check(line: String, ctx: &Context) -> String {
         // Handling the modules names themselves.
         if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
             // If the link is simply `index.html` the line is removed.
-            if mods.is_empty() {
+            if mods.is_empty() && section.is_empty() {
                 return "".into();
             }
 
             new.push_str(mods.replace("/", "::").trim_end_matches("::"));
         }
 
+        new.push_str(section);
         new.push('\n');
 
         new
@@ -445,6 +439,30 @@ mod tests {
                 check(line.into(), &CORE_CTX)
             );
         }
+
+        #[test]
+        fn additional_is_kept() {
+            let line = "/// [`String`]: struct.String.html#method.as_ref\n";
+            assert_eq!(
+                "/// [`String`]: String::as_ref\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [String]: struct.String.html#method.as_ref\n";
+            assert_eq!(
+                "    /// [String]: String::as_ref\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`String`]: struct.String.html#method.as_ref\n";
+            assert_eq!("[`String`]: String::as_ref\n", check(line.into(), &STD_CTX));
+
+            let line = "    [String]: struct.String.html#method.as_ref\n";
+            assert_eq!(
+                "    [String]: String::as_ref\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
     }
 
     mod module_tests {
@@ -593,6 +611,57 @@ mod tests {
             let line = "    [string]: ../../string/index.html\n";
             assert_eq!(
                 "    [string]: super::super::string\n",
+                check(line.into(), &STD_CTX)
+            );
+        }
+
+        #[test]
+        fn section_is_kept() {
+            let line = "/// [`string`]: string/index.html#my-section\n";
+            assert_eq!(
+                "/// [`string`]: string#my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [string]: string/index.html#my-section\n";
+            assert_eq!(
+                "    /// [string]: string#my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`string`]: string/index.html#my-section\n";
+            assert_eq!(
+                "[`string`]: string#my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    [string]: string/index.html#my-section\n";
+            assert_eq!(
+                "    [string]: string#my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "/// [`see my section`]: index.html#my-section\n";
+            assert_eq!(
+                "/// [`see my section`]: #my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    /// [see my section]: index.html#my-section\n";
+            assert_eq!(
+                "    /// [see my section]: #my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "[`see my section`]: index.html#my-section\n";
+            assert_eq!(
+                "[`see my section`]: #my-section\n",
+                check(line.into(), &STD_CTX)
+            );
+
+            let line = "    [see my section]: index.html#my-section\n";
+            assert_eq!(
+                "    [see my section]: #my-section\n",
                 check(line.into(), &STD_CTX)
             );
         }
