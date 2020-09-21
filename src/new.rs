@@ -463,6 +463,23 @@ mod tests {
                 check(line.into(), &STD_CTX)
             );
         }
+
+        #[test]
+        fn all_items_combination() {
+            for item in ITEM_TYPES {
+                for added in ITEM_TYPES {
+                    let line = format!(
+                        "//! [`String`]: ../../std/string/{item}.String.html#{added}.as_ref\n",
+                        item = item,
+                        added = added
+                    );
+                    assert_eq!(
+                        "//! [`String`]: crate::string::String::as_ref\n",
+                        check(line, &STD_CTX)
+                    );
+                }
+            }
+        }
     }
 
     mod module_tests {
