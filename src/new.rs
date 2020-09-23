@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+/// All item types that can be produced by `rustdoc`.
 const ITEM_TYPES: &[&str] = &[
     "associatedconstant",
     "associatedtype",
@@ -42,6 +43,7 @@ lazy_static! {
     /// Line that is a markdown link to a Rust item.
     static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
 
+    /// Start of a block where `Self` has a sense.
     static ref TYPE_BLOCK_START: Regex = Regex::new(concat!(
         r"^(?P<spaces>\s*)",
         r"(?:pub(?:\(.+\))? )?",
@@ -53,11 +55,18 @@ lazy_static! {
     )).unwrap();
 }
 
+/// Context for the check. It notably contains informations about the crate and
+/// the current type (e.g, for `#method.name` links).
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Context {
+    /// Name of the crate on which the tool is run.
     krate: String,
+    /// Name of the type that is `Self` for the current block.
     curr_type_block: Option<String>,
+    /// End of the current block for `Self` (if any).
     end_type_block: String,
+
+    // NOTE: at the moment nested type blocks are not handled.
 }
 
 pub fn check(line: String, ctx: &mut Context) -> String {
@@ -103,16 +112,16 @@ pub fn check(line: String, ctx: &mut Context) -> String {
             // Tuple struct or very simple item (empty enum for example).
             // We hope the next empty line will come before any link.
             if line.ends_with(";\n") || line.ends_with("}\n") {
-                '\n'.into()
+                "".into()
             } else {
                 // When the item is not simple we try to compute what will be
                 // the end of the block.
                 let mut s = captures.name("spaces").unwrap().as_str().to_string();
 
                 if let Some(_) = captures.name("parenthese") {
-                    s.push_str(")\n");
+                    s.push_str(")");
                 } else {
-                    s.push_str("}\n");
+                    s.push_str("}");
                 }
 
                 s
@@ -836,32 +845,32 @@ mod tests {
             let line = "struct A {}\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "struct A();\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "struct A { inner: String, }\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "struct A(usize);\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "struct A<'a, B=u8> where B: Trait + 'a {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "struct C<T=u8>(usize, (isize, T));\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("C".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
         }
 
         #[test]
@@ -871,22 +880,22 @@ mod tests {
             let line = "trait A {}\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "trait A {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "trait A { type T: Into<String>, }\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "trait A<'a, B=u8> where B: Trait + 'a {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
         }
 
         #[test]
@@ -896,22 +905,22 @@ mod tests {
             let line = "enum A {}\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "enum A {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "enum A { Variant1, Variant2 }\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "enum A<'a, B=u8> where B: Trait + 'a {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
         }
 
         #[test]
@@ -921,22 +930,22 @@ mod tests {
             let line = "union A {}\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "union A {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "union A { f: f64, u: u64 }\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "union A<'a, B=u8> where B: Trait + 'a {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
         }
 
         #[test]
@@ -946,32 +955,107 @@ mod tests {
             let line = "impl Trait for A {}\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "impl A {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "impl <T> Toto for A<T> {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "impl Trait for A { type B = String }\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "\n");
+            assert_eq!(ctx.end_type_block, "");
 
             let line = "impl<'a: 'static, B> Trait for A where B: Toto + 'a {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
 
             let line = "impl<'a, 'b, B: Trait<IntoIterator<Item=String>>> Toto for A where B: Toto + 'a, 'b: 'a, I: A<I> {\n";
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
-            assert_eq!(ctx.end_type_block, "}\n");
+            assert_eq!(ctx.end_type_block, "}");
+        }
+
+        #[test]
+        fn visibility_modifiers_are_handled() {
+            let mut ctx = STD_CTX.clone();
+
+            let line = "pub struct A {}\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "pub(crate) struct A();\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "pub(super) struct A { inner: String, }\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "pub(self) struct A(usize);\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "pub(crate::module) struct A<'a, B=u8> where B: Trait + 'a {\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "}");
+
+            let line = "pub(mod1::mod2) struct C<T=u8>(usize, (isize, T));\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("C".into()));
+            assert_eq!(ctx.end_type_block, "");
+        }
+
+        #[test]
+        fn indentation_is_remembered() {
+            let mut ctx = STD_CTX.clone();
+
+            let line = "    struct A {}\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "  struct A();\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "   struct A { inner: String, }\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = " struct A(usize);\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "");
+
+            let line = "  struct A<'a, B=u8> where B: Trait + 'a {\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "  }");
+
+            let line = "  struct A<'a, B=u8> where B: Trait + 'a {\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "  }");
+
+            let line = "    struct A<'a, B=u8> where B: Trait + 'a {\n";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, Some("A".into()));
+            assert_eq!(ctx.end_type_block, "    }");
         }
     }
 }
