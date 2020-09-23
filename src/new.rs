@@ -131,6 +131,13 @@ pub fn check(line: String, ctx: &mut Context) -> String {
         return line;
     }
 
+    // When reaching the end of the current type block, update the context to
+    // reflect it.
+    if ctx.curr_type_block.is_some() && line.starts_with(&ctx.end_type_block) {
+        ctx.curr_type_block = None;
+        ctx.end_type_block.clear();
+    }
+
     // Handling (possibly complex) regular links.
     let new = if let Some(captures) = item_link.captures(&line) {
         let link_name = captures.name("link_name").unwrap().as_str();
@@ -835,7 +842,7 @@ mod tests {
         }
     }
 
-    mod type_block {
+    mod type_block_start {
         use super::*;
 
         #[test]
@@ -1056,6 +1063,22 @@ mod tests {
             assert_eq!(line, check(line.into(), &mut ctx));
             assert_eq!(ctx.curr_type_block, Some("A".into()));
             assert_eq!(ctx.end_type_block, "    }");
+        }
+    }
+
+    mod type_block_end {
+        use super::*;
+
+        #[test]
+        fn end_set_block_to_none() {
+            let mut ctx = STD_CTX.clone();
+            ctx.curr_type_block = Some("Type".into());
+            ctx.end_type_block = "".into();
+
+            let line = "let a = 3;";
+            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(ctx.curr_type_block, None);
+            assert_eq!(ctx.end_type_block, "");
         }
     }
 }
