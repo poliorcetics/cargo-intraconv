@@ -53,6 +53,49 @@ mod regexes {
     use super::*;
 
     #[test]
+    fn http_link() {
+        let string = "   //! [`name 1`]:  http://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "//! [name 1]:   http://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[`name 1`]:  http://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]:   http://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        // HTTP_LINK is voluntarily very conservative in what is a link to
+        // avoid missing valid links. It is better not to break an existing
+        // and working link than to try and fail when replacing it or worse,
+        // transforming it but making it point to something else silently.
+        let string = "//! [name 1]:   http://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]:   http://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+    }
+
+    #[test]
     fn local_path() {
         fn check_captures(string: &str) {
             let captures = LOCAL_PATH.captures(string).unwrap();
@@ -122,46 +165,35 @@ mod regexes {
     }
 
     #[test]
-    fn http_link() {
-        let string = "   //! [`name 1`]:  http://\n";
-        assert!(HTTP_LINK.is_match(string));
+    fn method_anchor() {
+        for item in ITEM_TYPES {
+            let string = &format!(" //! [`link`]: #{}.added\n", item);
+            assert!(METHOD_ANCHOR.is_match(string));
+            let captures = METHOD_ANCHOR.captures(string).unwrap();
+            assert_eq!(
+                " //! [`link`]: ",
+                captures.name("link_name").unwrap().as_str()
+            );
+            assert_eq!("added", captures.name("additional").unwrap().as_str());
 
-        let string = "/// [name 1]: https://\n";
-        assert!(HTTP_LINK.is_match(string));
+            let string = &format!("/// [link]: #{}.added\n", item);
+            assert!(METHOD_ANCHOR.is_match(string));
+            let captures = METHOD_ANCHOR.captures(string).unwrap();
+            assert_eq!("/// [link]: ", captures.name("link_name").unwrap().as_str());
+            assert_eq!("added", captures.name("additional").unwrap().as_str());
 
-        let string = "//! [name 1]:   http://actual-link.com\n";
-        assert!(HTTP_LINK.is_match(string));
+            let string = &format!(" [`link`]: #{}.added\n", item);
+            assert!(METHOD_ANCHOR.is_match(string));
+            let captures = METHOD_ANCHOR.captures(string).unwrap();
+            assert_eq!(" [`link`]: ", captures.name("link_name").unwrap().as_str());
+            assert_eq!("added", captures.name("additional").unwrap().as_str());
 
-        let string = "/// [name 1]: https://actual-link.com\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[`name 1`]:  http://\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[name 1]: https://\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[name 1]:   http://actual-link.com\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[name 1]: https://actual-link.com\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        // HTTP_LINK is voluntarily very conservative in what is a link to
-        // avoid missing valid links. It is better not to break an existing
-        // and working link than to try and fail when replacing it or worse,
-        // transforming it but making it point to something else silently.
-        let string = "//! [name 1]:   http://not-An€actual-link\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "/// [name 1]: https://not-An€actual-link\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[name 1]:   http://not-An€actual-link\n";
-        assert!(HTTP_LINK.is_match(string));
-
-        let string = "[name 1]: https://not-An€actual-link\n";
-        assert!(HTTP_LINK.is_match(string));
+            let string = &format!("[link]: #{}.added\n", item);
+            assert!(METHOD_ANCHOR.is_match(string));
+            let captures = METHOD_ANCHOR.captures(string).unwrap();
+            assert_eq!("[link]: ", captures.name("link_name").unwrap().as_str());
+            assert_eq!("added", captures.name("additional").unwrap().as_str());
+        }
     }
 
     #[test]
