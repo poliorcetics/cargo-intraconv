@@ -1338,6 +1338,46 @@ mod tests {
             assert_eq!(line, res);
             assert_deleted(res);
 
+            let line = "/// [`string`]: ./string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "    //! [string]: ./string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "[`string`]: ./string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "    [string]: ./string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "/// [`string`]: ./index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "    /// [string]: ./index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "[`string`]: ./index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "    [string]: ./index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
             assert_eq!(*STD_CTX, ctx);
         }
 
