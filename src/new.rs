@@ -76,6 +76,10 @@ pub struct Context {
     /// End of the current block for `Self` (if any).
     end_type_block: String,
     // NOTE: at the moment nested type blocks are not handled.
+    /// All types blocks known to the context.
+    ///
+    /// Calling `pop` on the `Vec` must give the next type block (if there is
+    /// one).
     type_blocks: Vec<(String, String)>,
 }
 
@@ -83,6 +87,7 @@ pub fn check(line: String, ctx: &mut Context) -> String {
     let item_link = Regex::new(
         &[
             r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+            r"(?:\./)?",
             r"(?P<supers>(?:\.\./)*)",
             &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
             r"(?P<intermediates>(?:.*/))?",
@@ -100,6 +105,7 @@ pub fn check(line: String, ctx: &mut Context) -> String {
     let module_link = Regex::new(
         &[
             r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+            r"(?:\./)?",
             r"(?P<supers>(?:\.\./)*)",
             &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
             r"(?P<mods>(?:.*?/)*)",
@@ -115,30 +121,12 @@ pub fn check(line: String, ctx: &mut Context) -> String {
         return line;
     }
 
-    // Early return on context change too, after updating the context.
-    if let Some(captures) = TYPE_BLOCK_START.captures(&line) {
-        ctx.curr_type_block = captures.name("type").map(|x| x.as_str().to_string());
-        ctx.end_type_block = {
-            // Tuple struct or very simple item (empty enum for example).
-            // We hope the next empty line will come before any link.
-            if line.ends_with(";\n") || line.ends_with("}\n") {
-                '\n'.into()
-            } else {
-                // When the item is not simple we try to compute what will be
-                // the end of the block.
-                let mut s = captures.name("spaces").unwrap().as_str().to_string();
-
-                if let Some(_) = captures.name("parenthese") {
-                    s.push(')');
-                } else {
-                    s.push('}');
-                }
-
-                s
-            }
-        };
-
-        return line;
+    // Updating the currently active `Self` type.
+    if ctx.curr_type_block.is_none() {
+        if let Some((curr_type, end)) = ctx.type_blocks.pop() {
+            ctx.curr_type_block = Some(curr_type);
+            ctx.end_type_block = end;
+        }
     }
 
     // Handling (possibly complex) regular links.
@@ -265,6 +253,10 @@ pub fn check(line: String, ctx: &mut Context) -> String {
 }
 
 impl Context {
+    /// Fills `self.type_block` with the types that are encountered, reversing the
+    /// vector after they have all been added.
+    /// This means that calling this function twice maybe have unintended consequences
+    /// on the state `Context`.
     pub fn find_type_blocks<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
         for line in lines {
             // Early return on context change too, after updating the context.
@@ -290,6 +282,8 @@ impl Context {
                 self.type_blocks.push((ty, end));
             }
         }
+
+        self.type_blocks.reverse();
     }
 }
 
@@ -334,13 +328,15 @@ mod tests {
 
             ctx.find_type_blocks(lines.into_iter());
 
-            assert_eq!(ctx.type_blocks, &[
-                ("User".into(), "}".into()),
-                ("A".into(), "\n".into()),
-                ("Struct".into(), "    }".into()),
-            ]);
+            assert_eq!(
+                ctx.type_blocks,
+                &[
+                    ("Struct".into(), "    }".into()),
+                    ("A".into(), "\n".into()),
+                    ("User".into(), "}".into()),
+                ]
+            );
         }
-
 
         #[test]
         fn struct_blocks() {
@@ -556,7 +552,6 @@ mod tests {
             assert_eq!(ctx.type_blocks, [("C".into(), "    }".into())]);
             ctx.type_blocks.clear();
         }
-
     }
 
     mod unchanged_lines {
@@ -709,12 +704,45 @@ mod tests {
             let line = "    [String]: struct.String.html\n";
             assert_eq!("", check(line.into(), &mut ctx));
 
+            let line = "/// [`String`]: ./struct.String.html\n";
+            assert_eq!("", check(line.into(), &mut ctx));
+
+            let line = "    /// [String]: ./struct.String.html\n";
+            assert_eq!("", check(line.into(), &mut ctx));
+
+            let line = "[`String`]: ./struct.String.html\n";
+            assert_eq!("", check(line.into(), &mut ctx));
+
+            let line = "    [String]: ./struct.String.html\n";
+            assert_eq!("", check(line.into(), &mut ctx));
+
             assert_eq!(*STD_CTX, ctx);
         }
 
         #[test]
         fn long_link_is_transformed() {
             let mut ctx = STD_CTX.clone();
+
+            let line = "/// [`String`]: ./string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    /// [String]: ./string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "[`String`]: ./string/struct.String.html\n";
+            assert_eq!("[`String`]: string::String\n", check(line.into(), &mut ctx));
+
+            let line = "    [String]: ./string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: string::String\n",
+                check(line.into(), &mut ctx)
+            );
 
             let line = "/// [`String`]: string/struct.String.html\n";
             assert_eq!(
@@ -768,6 +796,30 @@ mod tests {
                 check(line.into(), &mut ctx)
             );
 
+            let line = "/// [`String`]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    /// [String]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "[`String`]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    [String]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
             assert_eq!(*STD_CTX, ctx);
         }
 
@@ -795,6 +847,30 @@ mod tests {
             );
 
             let line = "    [String]: ../../std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "/// [`String`]: ./../../std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    /// [String]: ./../../std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "[`String`]: ./../../std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: crate::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    [String]: ./../../std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: crate::string::String\n",
                 check(line.into(), &mut ctx)
@@ -831,6 +907,30 @@ mod tests {
                 check(line.into(), &mut ctx)
             );
 
+            let line = "/// [`String`]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: std::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    /// [String]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: std::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "[`String`]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: std::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    [String]: ./std/string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: std::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
             assert_eq!(*CORE_CTX, ctx);
         }
 
@@ -857,6 +957,30 @@ mod tests {
             );
 
             let line = "    [String]: ../../string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: super::super::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "/// [`String`]: ./../../string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: super::super::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    /// [String]: ./../../string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: super::super::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "[`String`]: ./../../string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: super::super::string::String\n",
+                check(line.into(), &mut ctx)
+            );
+
+            let line = "    [String]: ./../../string/struct.String.html\n";
             assert_eq!(
                 "    [String]: super::super::string::String\n",
                 check(line.into(), &mut ctx)
@@ -1224,6 +1348,62 @@ mod tests {
                 let line = format!("    [link name]: #{}.as_ref\n", item);
                 let expected = format!("    [link name]: {}::as_ref\n", ty);
                 assert_eq!(expected, check(line, &mut ctx));
+            }
+        }
+    }
+
+    mod complete_texts {
+        use super::*;
+
+        lazy_static! {
+            static ref NO_LINKS_CODE: [&'static str; 4] = [
+                "fn main() {\n",
+                "    println!(\"{:b}\", !1_usize);\n",
+                "    println!(\"{:b}\", !usize::MAX);\n",
+                "}\n",
+            ];
+            static ref WITH_SELF_LINKS: [&'static str; 7] = [
+                "/// [`b`]: #method.b\n",
+                "/// [b]: #method.b\n",
+                "struct A;\n",
+                "\n",
+                "impl A {\n",
+                "    fn b(self) {}\n",
+                "}\n",
+            ];
+        }
+
+        #[test]
+        fn no_links_code_empty_context() {
+            let mut ctx = STD_CTX.clone();
+            let unchanged = ctx.clone();
+
+            for &line in NO_LINKS_CODE.into_iter() {
+                assert_eq!(line, check(line.into(), &mut ctx));
+                assert_eq!(ctx, unchanged);
+            }
+        }
+
+        #[test]
+        fn with_self_links() {
+            let mut ctx = STD_CTX.clone();
+
+            ctx.find_type_blocks(WITH_SELF_LINKS.to_vec().into_iter());
+            assert_eq!(
+                ctx.type_blocks,
+                [("A".into(), "}".into()), ("A".into(), "\n".into())]
+            );
+
+            let mut iter = WITH_SELF_LINKS.into_iter();
+
+            let line = *iter.next().unwrap();
+            assert_eq!("/// [`b`]: A::b\n", check(line.into(), &mut ctx));
+
+            let line = *iter.next().unwrap();
+            assert_eq!("/// [b]: A::b\n", check(line.into(), &mut ctx));
+
+            for &line in iter {
+                assert_eq!(line, check(line.into(), &mut ctx));
             }
         }
     }
