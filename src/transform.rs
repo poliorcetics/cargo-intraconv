@@ -34,6 +34,14 @@ const ITEM_TYPES: &[&str] = &[
 ];
 
 lazy_static! {
+    /// Line that is a markdown link to a Rust item.
+    ///
+    /// `HTTP_LINK` is voluntarily very conservative in what is a link to
+    /// avoid missing valid links. It is better not to break an existing
+    /// and working link than to try and fail when replacing it or worse,
+    /// transforming it but making it point to something else silently.
+    static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
+
     /// Will search for a doc comment link and be used to check if the two
     /// elements are the same, indicating a local path.
     static ref LOCAL_PATH: Regex = Regex::new(&[
@@ -44,13 +52,18 @@ lazy_static! {
         r"(?:!|\(\))?\n$",
     ].join("")).unwrap();
 
-    /// Line that is a markdown link to a Rust item.
+    /// A partial link that needs a type to be complete.
     ///
-    /// `HTTP_LINK` is voluntarily very conservative in what is a link to
-    /// avoid missing valid links. It is better not to break an existing
-    /// and working link than to try and fail when replacing it or worse,
-    /// transforming it but making it point to something else silently.
-    static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
+    /// For more informations about how this is done, see the documentation
+    /// and code for the `Context` type.
+    static ref METHOD_ANCHOR: Regex = Regex::new(&[
+        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+        &format!(
+            r"#(?:{})\.(?P<additional>[\w_]+)\n$",
+            ITEM_TYPES.join("|")
+        ),
+    ].join(""))
+    .unwrap();
 
     /// Start of a block where `Self` has a sense.
     static ref TYPE_BLOCK_START: Regex = Regex::new(concat!(
@@ -62,15 +75,6 @@ lazy_static! {
         r"(?P<parenthese>\()?",
         r".*\n$",
     )).unwrap();
-
-    static ref METHOD_ANCHOR: Regex = Regex::new(&[
-        r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        &format!(
-            r"#(?:{})\.(?P<additional>[\w_]+)\n$",
-            ITEM_TYPES.join("|")
-        ),
-    ].join(""))
-    .unwrap();
 }
 
 /// Context for the check. It notably contains informations about the crate and
