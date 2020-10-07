@@ -63,6 +63,15 @@ mod regexes {
         let string = "   /// [name 1]: item\n";
         assert!(LOCAL_PATH.is_match(string));
 
+        let string = "   [`name 1`]: item()\n";
+        assert!(LOCAL_PATH.is_match(string));
+
+        let string = "[`name 1`]: item!\n";
+        assert!(LOCAL_PATH.is_match(string));
+
+        let string = "[name 1]: item\n";
+        assert!(LOCAL_PATH.is_match(string));
+
         for item in ITEM_TYPES {
             let string = &format!("//! [`name 1`]: {}@item()\n", item);
             assert!(LOCAL_PATH.is_match(string));
@@ -71,6 +80,15 @@ mod regexes {
             assert!(LOCAL_PATH.is_match(string));
 
             let string = &format!("/// [name 1]: {}@item\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+
+            let string = &format!("[`name 1`]: {}@item()\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+
+            let string = &format!("[`name 1`]: {}@item!\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+
+            let string = &format!("[name 1]: {}@item\n", item);
             assert!(LOCAL_PATH.is_match(string));
         }
     }
@@ -89,6 +107,18 @@ mod regexes {
         let string = "/// [name 1]: https://actual-link.com\n";
         assert!(HTTP_LINK.is_match(string));
 
+        let string = "[`name 1`]:  http://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]:   http://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
         // HTTP_LINK is voluntarily very conservative in what is a link to
         // avoid missing valid links. It is better not to break an existing
         // and working link than to try and fail when replacing it or worse,
@@ -97,6 +127,12 @@ mod regexes {
         assert!(HTTP_LINK.is_match(string));
 
         let string = "/// [name 1]: https://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]:   http://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "[name 1]: https://not-An€actual-link\n";
         assert!(HTTP_LINK.is_match(string));
     }
 
