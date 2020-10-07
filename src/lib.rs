@@ -131,21 +131,3 @@ fn check_krate(krate: &str) -> Result<String, String> {
         ))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_check_krate() {
-        assert_eq!(check_krate("std"), Ok("std".into()));
-        assert_eq!(check_krate("core"), Ok("core".into()));
-        assert_eq!(check_krate("alloc"), Ok("alloc".into()));
-
-        // The error text is not what's important here.
-        assert!(check_krate("Alloc").is_err());
-        assert!(check_krate("sTD").is_err());
-        assert!(check_krate("CoRe").is_err());
-        assert!(check_krate("abc").is_err());
-    }
-}

@@ -863,16 +863,16 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: String\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [String]: String\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`String`]: String\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [String]: String\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -924,28 +924,28 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [String]: struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`String`]: struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [String]: struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "/// [`String`]: ./struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [String]: ./struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`String`]: ./struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [String]: ./struct.String.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -1061,7 +1061,6 @@ mod tests {
         }
 
         #[test]
-
         fn full_link_is_transformed_crate_over_super() {
             let mut ctx = STD_CTX.clone();
 
@@ -1175,6 +1174,12 @@ mod tests {
         fn full_link_is_transformed_super() {
             let mut ctx = CORE_CTX.clone();
 
+            let line = "/// [`SpanTrace`]: ../struct.SpanTrace.html\n";
+            assert_eq!(
+                "/// [`SpanTrace`]: super::SpanTrace\n",
+                ctx.transform_line(line.into())
+            );
+
             let line = "/// [`String`]: ../../string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: super::super::string::String\n",
@@ -1287,28 +1292,28 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`string`]: string/index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [string]: string/index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`string`]: string/index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [string]: string/index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "/// [`string`]: index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [string]: index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`string`]: index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [string]: index.html\n";
-            assert_eq!("", ctx.transform_line(line.into()));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
