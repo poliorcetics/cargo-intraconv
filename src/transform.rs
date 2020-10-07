@@ -36,11 +36,13 @@ const ITEM_TYPES: &[&str] = &[
 lazy_static! {
     /// Will search for a doc comment link and be used to check if the two
     /// elements are the same, indicating a local path.
-    static ref LOCAL_PATH: Regex = Regex::new(concat!(
+    static ref LOCAL_PATH: Regex = Regex::new(&[
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
-        r"(?P<elem2>.*)\n$",
-    )).unwrap();
+        &format!(r"(?:(?:{})@)?", ITEM_TYPES.join("|")),
+        r"(?P<elem2>.*)",
+        r"(?:!|\(\))?\n$",
+    ].join("")).unwrap();
 
     /// Line that is a markdown link to a Rust item.
     static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
@@ -211,10 +213,10 @@ impl Context {
                 r"(?P<supers>(?:\.\./)*)",
                 &format!(r"(?:(?P<crate>{})/)?", self.krate),
                 r"(?P<intermediates>(?:.*/))?",
-                &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
+                &format!(r"(?P<item_type>{})\.", ITEM_TYPES.join("|")),
                 r"(?P<elem>.*)\.html",
                 &format!(
-                    r"(?:#(?:{})\.(?P<additional>\S*))?\n$",
+                    r"(?:#(?P<add_item_type>{})\.(?P<additional>\S*))?\n$",
                     ITEM_TYPES.join("|")
                 ),
             ]
@@ -225,9 +227,26 @@ impl Context {
         if let Some(captures) = item_link.captures(&line) {
             let link_name = captures.name("link_name").unwrap().as_str();
             let elem = captures.name("elem").unwrap().as_str();
+            let item_type = captures.name("item_type").unwrap().as_str();
+            let add_item_type = captures.name("add_item_type").map(|x| x.as_str());
 
             let mut new = String::with_capacity(64);
             new.push_str(link_name);
+
+            let true_item_type = add_item_type.unwrap_or(item_type);
+            let item = match true_item_type {
+                "struct" | "enum" | "trait" | "union" | "type" => "type",
+                "const" | "static" | "value" => "value",
+                "derive" | "attr" => "macro",
+                "primitive" => "primitive",
+                "mod" => "mod",
+                _ => "",
+            };
+
+            if !item.is_empty() {
+                new.push_str(item);
+                new.push('@');
+            }
 
             // Handling the start of the path.
             if let Some(_) = captures.name("crate") {
@@ -261,6 +280,12 @@ impl Context {
                 new.push_str(additional);
             }
 
+            match true_item_type {
+                "fn" | "method" => new.push_str("()"),
+                "macro" => new.push('!'),
+                _ => (),
+            };
+
             // The regexes that will follow expect a `\n` at the end of the line.
             new.push('\n');
 
@@ -293,6 +318,7 @@ impl Context {
 
             let mut new = String::with_capacity(64);
             new.push_str(link_name);
+            new.push_str("mod@");
 
             // Handling the start of the path.
             if let Some(_) = captures.name("crate") {
@@ -322,7 +348,9 @@ impl Context {
             new.push_str(section);
             new.push('\n');
 
-            new
+            // Some module links are only a link to a section, for those
+            // don't insert the 'mod@' modifier.
+            new.replace("]: mod@#", "]: #")
         } else {
             line
         }
@@ -688,80 +716,92 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: struct.String.html\n";
-            assert_eq!("/// [`String`]: String\n", ctx.transform_item(line.into()));
+            assert_eq!(
+                "/// [`String`]: type@String\n",
+                ctx.transform_item(line.into())
+            );
 
             let line = "    /// [String]: struct.String.html\n";
             assert_eq!(
-                "    /// [String]: String\n",
+                "    /// [String]: type@String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "[`String`]: struct.String.html\n";
-            assert_eq!("[`String`]: String\n", ctx.transform_item(line.into()));
+            assert_eq!("[`String`]: type@String\n", ctx.transform_item(line.into()));
 
             let line = "    [String]: struct.String.html\n";
-            assert_eq!("    [String]: String\n", ctx.transform_item(line.into()));
+            assert_eq!(
+                "    [String]: type@String\n",
+                ctx.transform_item(line.into())
+            );
 
             let line = "/// [`String`]: ./struct.String.html\n";
-            assert_eq!("/// [`String`]: String\n", ctx.transform_item(line.into()));
+            assert_eq!(
+                "/// [`String`]: type@String\n",
+                ctx.transform_item(line.into())
+            );
 
             let line = "    /// [String]: ./struct.String.html\n";
             assert_eq!(
-                "    /// [String]: String\n",
+                "    /// [String]: type@String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "[`String`]: ./struct.String.html\n";
-            assert_eq!("[`String`]: String\n", ctx.transform_item(line.into()));
+            assert_eq!("[`String`]: type@String\n", ctx.transform_item(line.into()));
 
             let line = "    [String]: ./struct.String.html\n";
-            assert_eq!("    [String]: String\n", ctx.transform_item(line.into()));
+            assert_eq!(
+                "    [String]: type@String\n",
+                ctx.transform_item(line.into())
+            );
 
             let line = "/// [`String`]: ./string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: string::String\n",
+                "/// [`String`]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "    /// [String]: ./string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: string::String\n",
+                "    /// [String]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "[`String`]: ./string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: string::String\n",
+                "[`String`]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "    [String]: ./string/struct.String.html\n";
             assert_eq!(
-                "    [String]: string::String\n",
+                "    [String]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "/// [`String`]: string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: string::String\n",
+                "/// [`String`]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "    /// [String]: string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: string::String\n",
+                "    /// [String]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "[`String`]: string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: string::String\n",
+                "[`String`]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
 
             let line = "    [String]: string/struct.String.html\n";
             assert_eq!(
-                "    [String]: string::String\n",
+                "    [String]: type@string::String\n",
                 ctx.transform_item(line.into())
             );
         }
@@ -956,49 +996,49 @@ mod tests {
 
             let line = "/// [`String`]: ./string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: string::String\n",
+                "/// [`String`]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: string::String\n",
+                "    /// [String]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: string::String\n",
+                "[`String`]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./string/struct.String.html\n";
             assert_eq!(
-                "    [String]: string::String\n",
+                "    [String]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: string::String\n",
+                "/// [`String`]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: string::String\n",
+                "    /// [String]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: string::String\n",
+                "[`String`]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: string/struct.String.html\n";
             assert_eq!(
-                "    [String]: string::String\n",
+                "    [String]: type@string::String\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1011,49 +1051,49 @@ mod tests {
 
             let line = "/// [`String`]: std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: crate::string::String\n",
+                "/// [`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: crate::string::String\n",
+                "    /// [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: crate::string::String\n",
+                "[`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: crate::string::String\n",
+                "    [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: crate::string::String\n",
+                "/// [`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: crate::string::String\n",
+                "    /// [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: crate::string::String\n",
+                "[`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: crate::string::String\n",
+                "    [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1066,49 +1106,49 @@ mod tests {
 
             let line = "/// [`String`]: ../../std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: crate::string::String\n",
+                "/// [`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ../../std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: crate::string::String\n",
+                "    /// [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ../../std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: crate::string::String\n",
+                "[`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ../../std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: crate::string::String\n",
+                "    [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./../../std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: crate::string::String\n",
+                "/// [`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./../../std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: crate::string::String\n",
+                "    /// [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./../../std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: crate::string::String\n",
+                "[`String`]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./../../std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: crate::string::String\n",
+                "    [String]: type@crate::string::String\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1121,49 +1161,49 @@ mod tests {
 
             let line = "/// [`String`]: std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: std::string::String\n",
+                "/// [`String`]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: std::string::String\n",
+                "    /// [String]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: std::string::String\n",
+                "[`String`]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: std::string::String\n",
+                "    [String]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: std::string::String\n",
+                "/// [`String`]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: std::string::String\n",
+                "    /// [String]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: std::string::String\n",
+                "[`String`]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./std/string/struct.String.html\n";
             assert_eq!(
-                "    [String]: std::string::String\n",
+                "    [String]: type@std::string::String\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1176,55 +1216,55 @@ mod tests {
 
             let line = "/// [`SpanTrace`]: ../struct.SpanTrace.html\n";
             assert_eq!(
-                "/// [`SpanTrace`]: super::SpanTrace\n",
+                "/// [`SpanTrace`]: type@super::SpanTrace\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ../../string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: super::super::string::String\n",
+                "/// [`String`]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ../../string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: super::super::string::String\n",
+                "    /// [String]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ../../string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: super::super::string::String\n",
+                "[`String`]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ../../string/struct.String.html\n";
             assert_eq!(
-                "    [String]: super::super::string::String\n",
+                "    [String]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./../../string/struct.String.html\n";
             assert_eq!(
-                "/// [`String`]: super::super::string::String\n",
+                "/// [`String`]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./../../string/struct.String.html\n";
             assert_eq!(
-                "    /// [String]: super::super::string::String\n",
+                "    /// [String]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./../../string/struct.String.html\n";
             assert_eq!(
-                "[`String`]: super::super::string::String\n",
+                "[`String`]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./../../string/struct.String.html\n";
             assert_eq!(
-                "    [String]: super::super::string::String\n",
+                "    [String]: type@super::super::string::String\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1237,50 +1277,29 @@ mod tests {
 
             let line = "/// [`String`]: struct.String.html#method.as_ref\n";
             assert_eq!(
-                "/// [`String`]: String::as_ref\n",
+                "/// [`String`]: String::as_ref()\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: struct.String.html#method.as_ref\n";
             assert_eq!(
-                "    /// [String]: String::as_ref\n",
+                "    /// [String]: String::as_ref()\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: struct.String.html#method.as_ref\n";
             assert_eq!(
-                "[`String`]: String::as_ref\n",
+                "[`String`]: String::as_ref()\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [String]: struct.String.html#method.as_ref\n";
             assert_eq!(
-                "    [String]: String::as_ref\n",
+                "    [String]: String::as_ref()\n",
                 ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
-        }
-
-        #[test]
-        fn all_items_combination() {
-            let mut ctx = STD_CTX.clone();
-
-            for item in ITEM_TYPES {
-                for added in ITEM_TYPES {
-                    let line = format!(
-                        "//! [`String`]: ../../std/string/{item}.String.html#{added}.as_ref\n",
-                        item = item,
-                        added = added
-                    );
-                    assert_eq!(
-                        "//! [`String`]: crate::string::String::as_ref\n",
-                        ctx.transform_line(line)
-                    );
-
-                    assert_eq!(*STD_CTX, ctx);
-                }
-            }
         }
     }
 
@@ -1387,25 +1406,25 @@ mod tests {
 
             let line = "/// [`string`]: module/string/index.html\n";
             assert_eq!(
-                "/// [`string`]: module::string\n",
+                "/// [`string`]: mod@module::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: module/string/index.html\n";
             assert_eq!(
-                "    /// [string]: module::string\n",
+                "    /// [string]: mod@module::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: module/string/index.html\n";
             assert_eq!(
-                "[`string`]: module::string\n",
+                "[`string`]: mod@module::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [string]: module/string/index.html\n";
             assert_eq!(
-                "    [string]: module::string\n",
+                "    [string]: mod@module::string\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1418,25 +1437,25 @@ mod tests {
 
             let line = "/// [`string`]: std/string/index.html\n";
             assert_eq!(
-                "/// [`string`]: crate::string\n",
+                "/// [`string`]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: std/string/index.html\n";
             assert_eq!(
-                "    /// [string]: crate::string\n",
+                "    /// [string]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: std/string/index.html\n";
             assert_eq!(
-                "[`string`]: crate::string\n",
+                "[`string`]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [string]: std/string/index.html\n";
             assert_eq!(
-                "    [string]: crate::string\n",
+                "    [string]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1449,25 +1468,25 @@ mod tests {
 
             let line = "/// [`string`]: ../../std/string/index.html\n";
             assert_eq!(
-                "/// [`string`]: crate::string\n",
+                "/// [`string`]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: ../../std/string/index.html\n";
             assert_eq!(
-                "    /// [string]: crate::string\n",
+                "    /// [string]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: ../../std/string/index.html\n";
             assert_eq!(
-                "[`string`]: crate::string\n",
+                "[`string`]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [string]: ../../std/string/index.html\n";
             assert_eq!(
-                "    [string]: crate::string\n",
+                "    [string]: mod@crate::string\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1480,22 +1499,25 @@ mod tests {
 
             let line = "/// [`string`]: std/string/index.html\n";
             assert_eq!(
-                "/// [`string`]: std::string\n",
+                "/// [`string`]: mod@std::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: std/string/index.html\n";
             assert_eq!(
-                "    /// [string]: std::string\n",
+                "    /// [string]: mod@std::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: std/string/index.html\n";
-            assert_eq!("[`string`]: std::string\n", ctx.transform_line(line.into()));
+            assert_eq!(
+                "[`string`]: mod@std::string\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [string]: std/string/index.html\n";
             assert_eq!(
-                "    [string]: std::string\n",
+                "    [string]: mod@std::string\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1508,25 +1530,25 @@ mod tests {
 
             let line = "/// [`string`]: ../../string/index.html\n";
             assert_eq!(
-                "/// [`string`]: super::super::string\n",
+                "/// [`string`]: mod@super::super::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: ../../string/index.html\n";
             assert_eq!(
-                "    /// [string]: super::super::string\n",
+                "    /// [string]: mod@super::super::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: ../../string/index.html\n";
             assert_eq!(
-                "[`string`]: super::super::string\n",
+                "[`string`]: mod@super::super::string\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [string]: ../../string/index.html\n";
             assert_eq!(
-                "    [string]: super::super::string\n",
+                "    [string]: mod@super::super::string\n",
                 ctx.transform_line(line.into())
             );
 
@@ -1539,25 +1561,25 @@ mod tests {
 
             let line = "/// [`string`]: string/index.html#my-section\n";
             assert_eq!(
-                "/// [`string`]: string#my-section\n",
+                "/// [`string`]: mod@string#my-section\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: string/index.html#my-section\n";
             assert_eq!(
-                "    /// [string]: string#my-section\n",
+                "    /// [string]: mod@string#my-section\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: string/index.html#my-section\n";
             assert_eq!(
-                "[`string`]: string#my-section\n",
+                "[`string`]: mod@string#my-section\n",
                 ctx.transform_line(line.into())
             );
 
             let line = "    [string]: string/index.html#my-section\n";
             assert_eq!(
-                "    [string]: string#my-section\n",
+                "    [string]: mod@string#my-section\n",
                 ctx.transform_line(line.into())
             );
 
