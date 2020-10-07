@@ -49,6 +49,113 @@ lazy_static! {
     };
 }
 
+mod regexes {
+    use super::*;
+
+    #[test]
+    fn local_path() {
+        let string = "   //! [`name 1`]: item()\n";
+        assert!(LOCAL_PATH.is_match(string));
+
+        let string = "   //! [`name 1`]: item!\n";
+        assert!(LOCAL_PATH.is_match(string));
+
+        let string = "   /// [name 1]: item\n";
+        assert!(LOCAL_PATH.is_match(string));
+
+        for item in ITEM_TYPES {
+            let string = &format!("//! [`name 1`]: {}@item()\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+
+            let string = &format!("/// [`name 1`]: {}@item!\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+
+            let string = &format!("/// [name 1]: {}@item\n", item);
+            assert!(LOCAL_PATH.is_match(string));
+        }
+    }
+
+    #[test]
+    fn http_link() {
+        let string = "   //! [`name 1`]:  http://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "//! [name 1]:   http://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://actual-link.com\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        // HTTP_LINK is voluntarily very conservative in what is a link to
+        // avoid missing valid links. It is better not to break an existing
+        // and working link than to try and fail when replacing it or worse,
+        // transforming it but making it point to something else silently.
+        let string = "//! [name 1]:   http://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+
+        let string = "/// [name 1]: https://not-An€actual-link\n";
+        assert!(HTTP_LINK.is_match(string));
+    }
+
+    #[test]
+    fn type_block_start() {
+        let type_decls = ["struct", "trait", "enum", "union"];
+
+        let visi_decls = [
+            "",
+            "pub",
+            "pub(crate)",
+            "pub(self)",
+            "pub(super)",
+            "pub(a)",
+            "pub(b::a)",
+        ];
+
+        let generics = ["", "<A>", "<A, B>", "<A: Trait, const B: usize>"];
+
+        let parentheses = ["", "(", "{", "where A: Trait", "where B: C {"];
+
+        for v in &visi_decls {
+            for t in &type_decls {
+                for g in &generics {
+                    for p in &parentheses {
+                        let string = &format!("{} {} Type{} {}\n", v, t, g, p);
+                        assert!(TYPE_BLOCK_START.is_match(string), "{}", string);
+
+                        let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                        assert_eq!(
+                            "Type",
+                            captures.name("type").unwrap().as_str(),
+                            "{}",
+                            string
+                        );
+                    }
+                }
+            }
+        }
+
+        for g1 in &generics {
+            for g2 in &generics {
+                for p in &parentheses {
+                    let string = &format!("impl{} Type{} {}\n", g1, g2, p);
+                    assert!(TYPE_BLOCK_START.is_match(string), "{}", string);
+
+                    let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                    assert_eq!(
+                        "Type",
+                        captures.name("type").unwrap().as_str(),
+                        "{}",
+                        string
+                    );
+                }
+            }
+        }
+    }
+}
+
 mod context {
     use super::*;
 
