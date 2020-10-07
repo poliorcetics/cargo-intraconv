@@ -79,7 +79,7 @@ lazy_static! {
 
 /// Context for the check. It notably contains informations about the crate and
 /// the current type (e.g, for `#method.name` links).
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Context {
     /// Name of the crate on which the tool is run.
     /// It must have been checked to be a correct identifier for Rust.
@@ -99,6 +99,11 @@ pub struct Context {
 }
 
 impl Context {
+    /// Creates a new `Context` with the given crate.
+    ///
+    /// NOTE: the `krate` parameter must contain a valid Rust identifier for a
+    /// crate name (basically the regex `[\w_]+`) else the links that use it
+    /// will be broken by the conversion.
     pub fn new(krate: String) -> Self {
         Self {
             krate,

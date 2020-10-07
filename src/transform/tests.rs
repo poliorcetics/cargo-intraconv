@@ -33,20 +33,8 @@ impl PartialEq<Action> for String {
 }
 
 lazy_static! {
-    static ref STD_CTX: Context = Context {
-        krate: "std".into(),
-        pos: 0,
-        curr_type_block: None,
-        end_type_block: "".into(),
-        type_blocks: Vec::new(),
-    };
-    static ref CORE_CTX: Context = Context {
-        krate: "core".into(),
-        pos: 0,
-        curr_type_block: None,
-        end_type_block: "".into(),
-        type_blocks: Vec::new(),
-    };
+    static ref STD_CTX: Context = Context::new("std".into());
+    static ref CORE_CTX: Context = Context::new("core".into());
 }
 
 mod regexes {
@@ -250,6 +238,20 @@ mod regexes {
             }
         }
     }
+}
+
+#[test]
+fn new() {
+    let ctx = Context {
+        krate: "name".into(),
+        pos: 0,
+        curr_type_block: None,
+        end_type_block: String::new(),
+        type_blocks: Vec::new(),
+    };
+
+    assert_eq!(Context::new("name".into()), ctx);
+    assert_ne!(Context::new("not_name".into()), ctx);
 }
 
 mod context {
