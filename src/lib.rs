@@ -20,15 +20,14 @@ use std::path::PathBuf;
 /// `-c core` (`--crate core`) to mark the change in the root crate.
 #[derive(FromArgs, Debug)]
 pub struct Args {
-    /// root crate (one of `std`, `core` or `alloc`).
+    /// root crate
     #[argh(
         option,
         long = "crate",
         short = 'c',
-        from_str_fn(check_krate),
-        default = "\"std\""
+        default = "\"std\".to_string()"
     )]
-    krate: &'static str,
+    krate: String,
 
     /// apply the proposed changes. Does nothing for now.
     #[argh(switch, short = 'a')]
@@ -44,34 +43,5 @@ pub struct Args {
 pub fn run(args: Args) {
     args.paths
         .iter()
-        .for_each(|path| transform::handle_path(path, args.krate, args.apply))
-}
-
-/// Check the given `krate` is exactly one of `std`, `core` or `alloc`.
-/// In any other case it will return an error message.
-fn check_krate(krate: &str) -> Result<&'static str, String> {
-    match krate {
-        "std" => Ok("std"),
-        "core" => Ok("core"),
-        "alloc" => Ok("alloc"),
-        _ => Err("Valid crate options are `std`, `core` and `alloc`.".into()),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_check_krate() {
-        assert_eq!(check_krate("std"), Ok("std"));
-        assert_eq!(check_krate("core"), Ok("core"));
-        assert_eq!(check_krate("alloc"), Ok("alloc"));
-
-        // The error text is not what's important here.
-        assert!(check_krate("Alloc").is_err());
-        assert!(check_krate("sTD").is_err());
-        assert!(check_krate("CoRe").is_err());
-        assert!(check_krate("abc").is_err());
-    }
+        .for_each(|path| transform::handle_path(path, &args.krate, args.apply))
 }

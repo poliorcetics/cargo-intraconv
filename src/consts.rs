@@ -31,8 +31,8 @@ lazy_static::lazy_static! {
     /// Line that is a markdown link to a Rust item.
     pub static ref ITEM_LINK: Regex = Regex::new(concat!(
         r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-        r"(?P<supers>(?:\.\./)*)",
-        r"(?:(?P<crate>std|core|alloc)/)?",
+        r"(?P<supers>(?:\.\./)*|\./)",
+        r"(?:(?P<crate>[a-zA-Z_]+)/)?",
         r"(?P<intermediates>(?:.*/))?",
         r"(?:enum|struct|primitive|trait|constant|type|fn|macro)\.",
         r"(?P<elem2>.*)\.html",
@@ -44,7 +44,7 @@ lazy_static::lazy_static! {
     pub static ref MODULE_LINK: Regex = Regex::new(concat!(
         r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         r"(?P<supers>(?:\.\./)*)",
-        r"(?:(?P<crate>std|core|alloc)/)?",
+        r"(?:(?P<crate>[a-zA-Z_]+)/)?",
         r"(?P<mods>(?:.*?/)*)",
         r"index\.html$",
     ))
