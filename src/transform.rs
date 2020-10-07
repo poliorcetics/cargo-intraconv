@@ -170,13 +170,14 @@ fn comment_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str
 
     // Intermediates element like a path through modules.
     if let Some(intermediates) = captures.name("intermediates") {
-        let intermediates: &str = intermediates.as_str();
+        let mut intermediates: &str = intermediates.as_str();
         if intermediates.starts_with("http") {
             return Action::Unchanged { line };
         }
-        if intermediates != "./" {
-            new.push_str(&intermediates.replace("/", "::"));
+        if intermediates.starts_with("./") {
+            intermediates = &intermediates[2..];
         }
+        new.push_str(&intermediates.replace("/", "::"));
     }
 
     new.push_str(captures.name("elem2").unwrap().as_str());
@@ -223,7 +224,13 @@ fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str)
     }
 
     if let Some(mods) = captures.name("mods") {
-        new.push_str(mods.as_str().replace("/", "::").trim_end_matches("::"));
+        let mods = mods.as_str();
+        let mods = if mods.starts_with("./") {
+            &mods[2..]
+        } else {
+            &mods
+        };
+        new.push_str(mods.replace("/", "::").trim_end_matches("::"));
     }
 
     // Check if the link has become a local path
