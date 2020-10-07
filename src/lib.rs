@@ -11,6 +11,7 @@ use std::fs::{File, OpenOptions};
 use std::io::BufReader;
 use std::io::Write as _;
 use std::path::PathBuf;
+use std::process;
 
 /// Converter from path-based links to intra-doc links for the `rust-lang/rust`
 /// project.
@@ -49,7 +50,8 @@ pub struct Args {
 pub fn run(args: Args) {
     if args.paths.is_empty() {
         eprintln!("No paths were passed as arguments.");
-        return;
+        eprintln!("usage: cargo-intraconv [<paths...>] [-c <crate>] [-a]");
+        process::exit(1);
     }
 
     let mut ctx = Context::new(args.krate);
