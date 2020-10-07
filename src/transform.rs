@@ -102,6 +102,7 @@ fn search_links<R: Read>(file: BufReader<R>, krate: &str) -> io::Result<Vec<Acti
                         // line so `raw_pos` is at least 1.
                         pos: unsafe { NonZeroUsize::new_unchecked(raw_pos) },
                     };
+                    lines.push(Action::Unchanged { line: curr_line });
                     continue;
                 }
             }
