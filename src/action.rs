@@ -60,7 +60,7 @@ impl fmt::Display for Action {
                 "{:5}:  \"{}\"\n        {}",
                 pos,
                 Color::Red.paint(line.trim_end_matches('\n')),
-                Color::Yellow.paint("Deleted local link")
+                Color::Yellow.paint("Deleted local link (of the form '[name]: name')")
             ),
             Action::Replaced { line, new, pos } => write!(
                 f,
