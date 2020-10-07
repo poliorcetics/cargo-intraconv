@@ -1,7 +1,8 @@
+//! See the `Action` type for more information.
 use ansi_term::Color;
 use std::fmt;
 
-/// The action taken for a particular line of text.
+/// The action taken for a line of text.
 ///
 /// This action can then be displayed to show diffs with the `Display` impl or
 /// saved somewhere else through the `as_new_line` method.
@@ -34,7 +35,7 @@ impl Action {
     /// Returns the new line to add.
     ///
     /// - `Action::Unchanged` returns its line unchanged.
-    /// - `Action::Deleted` returns an empty line.
+    /// - `Action::Deleted` returns an empty line (without ending `\n`).
     /// - `Action::Replaced` returns its `new` line.
     pub fn as_new_line(&self) -> &str {
         match self {
@@ -52,6 +53,10 @@ impl Action {
 impl fmt::Display for Action {
     /// Special display that will only write `Deleted` and `Replaced` variants,
     /// unchanged lines are simply ignored.
+    ///
+    /// Note that colors are used and the output it not stable: it is intended
+    /// to be read by humans, not machines, use the variants and the
+    /// `as_new_line` method on `Action` for that.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Action::Unchanged { line: _ } => Ok(()),
