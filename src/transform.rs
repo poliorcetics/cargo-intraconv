@@ -1,8 +1,6 @@
 use crate::Action;
 use lazy_static::lazy_static;
 use regex::Regex;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::io::{self, BufRead};
 
 /// All item types that can be produced by `rustdoc`.
@@ -174,21 +172,9 @@ impl Context {
             return Action::Unchanged { line };
         }
 
-        let mut hasher = DefaultHasher::new();
-        line.hash(&mut hasher);
-        let original_hash = hasher.finish();
-
         let line = self.transform_item(line);
-        line.hash(&mut hasher);
-        let item_hash = hasher.finish();
-
         let line = self.transform_module(line);
-        line.hash(&mut hasher);
-        let module_hash = hasher.finish();
-
         let line = self.transform_anchor(line);
-        line.hash(&mut hasher);
-        let anchor_hash = hasher.finish();
 
         // When reaching the end of the current type block, update the context to
         // reflect it.
@@ -198,18 +184,13 @@ impl Context {
         }
 
         let line = self.transform_local(line);
-        line.hash(&mut hasher);
-        let local_hash = hasher.finish();
 
         if line.is_empty() {
             Action::Deleted {
-                line,
+                line: copy,
                 pos: self.pos,
             }
-        } else if [item_hash, module_hash, anchor_hash, local_hash]
-            .iter()
-            .all(|h| *h == original_hash)
-        {
+        } else if line == copy {
             Action::Unchanged { line: copy }
         } else {
             Action::Replaced {

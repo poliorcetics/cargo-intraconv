@@ -55,15 +55,19 @@ impl fmt::Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Action::Unchanged { line: _ } => Ok(()),
-            Action::Deleted { line, pos } => {
-                write!(f, "{:5}:  \"{}\"", pos, Color::Red.paint(line),)
-            }
+            Action::Deleted { line, pos } => write!(
+                f,
+                "{:5}:  \"{}\"\n        {}",
+                pos,
+                Color::Red.paint(line.trim_end_matches('\n')),
+                Color::Yellow.paint("Deleted local link")
+            ),
             Action::Replaced { line, new, pos } => write!(
                 f,
                 "{:5}:  \"{}\"\n        \"{}\"",
                 pos,
-                Color::Red.paint(line),
-                Color::Green.paint(new)
+                Color::Red.paint(line.trim_end_matches('\n')),
+                Color::Green.paint(new.trim_end_matches('\n'))
             ),
         }
     }

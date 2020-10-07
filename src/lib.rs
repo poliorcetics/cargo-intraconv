@@ -92,7 +92,7 @@ pub fn run(args: Args) {
                 println!("{}\n", l);
             }
             if args.apply {
-                write!(updated_content, "{}\n", l.as_new_line()).unwrap();
+                write!(updated_content, "{}", l.as_new_line()).unwrap();
             }
         }
 
