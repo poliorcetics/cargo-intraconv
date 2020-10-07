@@ -1,5 +1,9 @@
+use crate::Action;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::io::{self, BufRead};
 
 /// All item types that can be produced by `rustdoc`.
 const ITEM_TYPES: &[&str] = &[
@@ -71,6 +75,8 @@ pub struct Context {
     /// Name of the crate on which the tool is run.
     /// It must have been checked to be a correct identifier for Rust.
     krate: String,
+    /// Current line number.
+    pos: usize,
     /// Name of the type that is `Self` for the current block.
     curr_type_block: Option<String>,
     /// End of the current block for `Self` (if any).
@@ -83,181 +89,47 @@ pub struct Context {
     type_blocks: Vec<(String, String)>,
 }
 
-pub fn check(line: String, ctx: &mut Context) -> String {
-    let item_link = Regex::new(
-        &[
-            r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-            r"(?:\./)?",
-            r"(?P<supers>(?:\.\./)*)",
-            &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
-            r"(?P<intermediates>(?:.*/))?",
-            &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
-            r"(?P<elem>.*)\.html",
-            &format!(
-                r"(?:#(?:{})\.(?P<additional>\S*))?\n$",
-                ITEM_TYPES.join("|")
-            ),
-        ]
-        .join(""),
-    )
-    .unwrap();
-
-    let module_link = Regex::new(
-        &[
-            r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
-            r"(?:\./)?",
-            r"(?P<supers>(?:\.\./)*)",
-            &format!(r"(?:(?P<crate>{})/)?", ctx.krate),
-            r"(?P<mods>(?:.*?/)*)",
-            r"index\.html",
-            r"(?P<section>#.+)?\n$",
-        ]
-        .join(""),
-    )
-    .unwrap();
-
-    // Early return on http links.
-    if HTTP_LINK.is_match(&line) {
-        return line;
-    }
-
-    // Updating the currently active `Self` type.
-    if ctx.curr_type_block.is_none() {
-        if let Some((curr_type, end)) = ctx.type_blocks.pop() {
-            ctx.curr_type_block = Some(curr_type);
-            ctx.end_type_block = end;
-        }
-    }
-
-    // Handling (possibly complex) regular links.
-    let new = if let Some(captures) = item_link.captures(&line) {
-        let link_name = captures.name("link_name").unwrap().as_str();
-        let elem = captures.name("elem").unwrap().as_str();
-
-        let mut new = String::with_capacity(64);
-        new.push_str(link_name);
-
-        // Handling the start of the path.
-        if let Some(_) = captures.name("crate") {
-            // This a path contained in the crate: the start of a full path is
-            // 'crate', not the crate name in this case.
-            new.push_str("crate::");
-        } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
-            // The path is not explicitely contained in the crate but has some
-            // 'super' elements.
-            let count = supers.matches('/').count();
-            // This way we won't allocate a string only to immediately drop it.
-            for _ in 0..count {
-                new.push_str("super::");
-            }
-        }
-
-        // Intermediates element like a path through modules.
-        // In the case of a path without 'super'
-        if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
-            if intermediates != "./" {
-                new.push_str(&intermediates.replace("/", "::"));
-            }
-        }
-
-        // The main element of the link.
-        new.push_str(elem);
-
-        // Additional linked elements like a method or a variant.
-        if let Some(additional) = captures.name("additional").map(|x| x.as_str()) {
-            new.push_str("::");
-            new.push_str(additional);
-        }
-
-        // The regexes that will follow expect a `\n` at the end of the line.
-        new.push('\n');
-
-        new
-    } else {
-        line
-    };
-
-    let new = if let Some(captures) = module_link.captures(&new) {
-        let link_name = captures.name("link_name").unwrap().as_str();
-        let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
-
-        let mut new = String::with_capacity(64);
-        new.push_str(link_name);
-
-        // Handling the start of the path.
-        if let Some(_) = captures.name("crate") {
-            // This a path contained in the crate: the start of a full path is
-            // 'crate', not the crate name in this case.
-            new.push_str("crate::");
-        } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
-            // The path is not explicitely contained in the crate but has some
-            // 'super' elements.
-            let count = supers.matches('/').count();
-            // This way we won't allocate a string only to immediately drop it.
-            for _ in 0..count {
-                new.push_str("super::");
-            }
-        }
-
-        // Handling the modules names themselves.
-        if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
-            // If the link is simply `index.html` the line is removed.
-            if mods.is_empty() && section.is_empty() {
-                return "".into();
-            }
-
-            new.push_str(mods.replace("/", "::").trim_end_matches("::"));
-        }
-
-        new.push_str(section);
-        new.push('\n');
-
-        new
-    } else {
-        new
-    };
-
-    let new = if let (Some(ref captures), Some(ref ty)) =
-        (METHOD_ANCHOR.captures(&new), &ctx.curr_type_block)
-    {
-        let link_name = captures.name("link_name").unwrap().as_str();
-        let additional = captures.name("additional").unwrap().as_str();
-
-        format!(
-            "{link}{ty}::{add}\n",
-            link = link_name,
-            ty = ty,
-            add = additional
-        )
-    } else {
-        new
-    };
-
-    // When reaching the end of the current type block, update the context to
-    // reflect it.
-    if ctx.curr_type_block.is_some() && new.starts_with(&ctx.end_type_block) {
-        ctx.curr_type_block = None;
-        ctx.end_type_block.clear();
-    }
-
-    // Handling local paths.
-    if let Some(captures) = LOCAL_PATH.captures(&new) {
-        let link = captures.name("elem").unwrap();
-        let path = captures.name("elem2").unwrap();
-        if path.as_str() == link.as_str() {
-            return "".into();
-        }
-    }
-
-    new
-}
-
 impl Context {
+    pub fn new(krate: String) -> Self {
+        Self {
+            krate,
+            pos: 0,
+            curr_type_block: None,
+            end_type_block: String::new(),
+            type_blocks: Vec::new(),
+        }
+    }
+
+    pub fn transform_file<R: BufRead>(&mut self, reader: R) -> io::Result<Vec<Action>> {
+        // Reset the state before handling the file.
+        self.pos = 0;
+        self.curr_type_block = None;
+        self.end_type_block = String::new();
+        self.type_blocks.clear();
+
+        let mut lines = Vec::new();
+        for l in reader.lines() {
+            let mut line = l?.trim_end().to_string();
+            line.push('\n');
+            lines.push(line);
+        }
+
+        self.find_type_blocks(lines.iter().map(|s| s.as_str()));
+
+        let mut actions = Vec::with_capacity(lines.len());
+        for line in lines.into_iter() {
+            self.pos += 1;
+            actions.push(self.transform_line(line));
+        }
+
+        Ok(actions)
+    }
+
     /// Fills `self.type_block` with the types that are encountered, reversing the
     /// vector after they have all been added.
     /// This means that calling this function twice maybe have unintended consequences
     /// on the state `Context`.
-    pub fn find_type_blocks<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
+    fn find_type_blocks<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
         for line in lines {
             // Early return on context change too, after updating the context.
             if let Some(captures) = TYPE_BLOCK_START.captures(&line) {
@@ -285,21 +157,280 @@ impl Context {
 
         self.type_blocks.reverse();
     }
+
+    /// Transform a single line, returning the action.
+    fn transform_line(&mut self, line: String) -> Action {
+        let copy = line.clone();
+
+        // Updating the currently active `Self` type.
+        if self.curr_type_block.is_none() {
+            if let Some((curr_type, end)) = self.type_blocks.pop() {
+                self.curr_type_block = Some(curr_type);
+                self.end_type_block = end;
+            }
+        }
+
+        if HTTP_LINK.is_match(&line) {
+            return Action::Unchanged { line };
+        }
+
+        let mut hasher = DefaultHasher::new();
+        line.hash(&mut hasher);
+        let original_hash = hasher.finish();
+
+        let line = self.transform_item(line);
+        line.hash(&mut hasher);
+        let item_hash = hasher.finish();
+
+        let line = self.transform_module(line);
+        line.hash(&mut hasher);
+        let module_hash = hasher.finish();
+
+        let line = self.transform_anchor(line);
+        line.hash(&mut hasher);
+        let anchor_hash = hasher.finish();
+
+        // When reaching the end of the current type block, update the context to
+        // reflect it.
+        if self.curr_type_block.is_some() && line.starts_with(&self.end_type_block) {
+            self.curr_type_block = None;
+            self.end_type_block.clear();
+        }
+
+        let line = self.transform_local(line);
+        line.hash(&mut hasher);
+        let local_hash = hasher.finish();
+
+        if line.is_empty() {
+            Action::Deleted {
+                line,
+                pos: self.pos,
+            }
+        } else if [item_hash, module_hash, anchor_hash, local_hash]
+            .iter()
+            .all(|h| *h == original_hash)
+        {
+            Action::Unchanged { line: copy }
+        } else {
+            Action::Replaced {
+                line: copy,
+                new: line,
+                pos: self.pos,
+            }
+        }
+    }
+
+    /// Try to transform a line as an item link. If it is not, the line
+    /// is returned unmodified.
+    fn transform_item(&mut self, line: String) -> String {
+        let item_link = Regex::new(
+            &[
+                r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+                r"(?:\./)?",
+                r"(?P<supers>(?:\.\./)*)",
+                &format!(r"(?:(?P<crate>{})/)?", self.krate),
+                r"(?P<intermediates>(?:.*/))?",
+                &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
+                r"(?P<elem>.*)\.html",
+                &format!(
+                    r"(?:#(?:{})\.(?P<additional>\S*))?\n$",
+                    ITEM_TYPES.join("|")
+                ),
+            ]
+            .join(""),
+        )
+        .unwrap();
+
+        if let Some(captures) = item_link.captures(&line) {
+            let link_name = captures.name("link_name").unwrap().as_str();
+            let elem = captures.name("elem").unwrap().as_str();
+
+            let mut new = String::with_capacity(64);
+            new.push_str(link_name);
+
+            // Handling the start of the path.
+            if let Some(_) = captures.name("crate") {
+                // This a path contained in the crate: the start of a full path is
+                // 'crate', not the crate name in this case.
+                new.push_str("crate::");
+            } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+                // The path is not explicitely contained in the crate but has some
+                // 'super' elements.
+                let count = supers.matches('/').count();
+                // This way we won't allocate a string only to immediately drop it.
+                for _ in 0..count {
+                    new.push_str("super::");
+                }
+            }
+
+            // Intermediates element like a path through modules.
+            // In the case of a path without 'super'
+            if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
+                if intermediates != "./" {
+                    new.push_str(&intermediates.replace("/", "::"));
+                }
+            }
+
+            // The main element of the link.
+            new.push_str(elem);
+
+            // Additional linked elements like a method or a variant.
+            if let Some(additional) = captures.name("additional").map(|x| x.as_str()) {
+                new.push_str("::");
+                new.push_str(additional);
+            }
+
+            // The regexes that will follow expect a `\n` at the end of the line.
+            new.push('\n');
+
+            new
+        } else {
+            line
+        }
+    }
+
+    /// Try to transform a line as a module link. If it is not, the line is
+    /// returned unmodified.
+    fn transform_module(&mut self, line: String) -> String {
+        let module_link = Regex::new(
+            &[
+                r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
+                r"(?:\./)?",
+                r"(?P<supers>(?:\.\./)*)",
+                &format!(r"(?:(?P<crate>{})/)?", self.krate),
+                r"(?P<mods>(?:.*?/)*)",
+                r"index\.html",
+                r"(?P<section>#.+)?\n$",
+            ]
+            .join(""),
+        )
+        .unwrap();
+
+        if let Some(captures) = module_link.captures(&line) {
+            let link_name = captures.name("link_name").unwrap().as_str();
+            let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
+
+            let mut new = String::with_capacity(64);
+            new.push_str(link_name);
+
+            // Handling the start of the path.
+            if let Some(_) = captures.name("crate") {
+                // This a path contained in the crate: the start of a full path is
+                // 'crate', not the crate name in this case.
+                new.push_str("crate::");
+            } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+                // The path is not explicitely contained in the crate but has some
+                // 'super' elements.
+                let count = supers.matches('/').count();
+                // This way we won't allocate a string only to immediately drop it.
+                for _ in 0..count {
+                    new.push_str("super::");
+                }
+            }
+
+            // Handling the modules names themselves.
+            if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
+                // If the link is simply `index.html` the line is removed.
+                if mods.is_empty() && section.is_empty() {
+                    return "".into();
+                }
+
+                new.push_str(mods.replace("/", "::").trim_end_matches("::"));
+            }
+
+            new.push_str(section);
+            new.push('\n');
+
+            new
+        } else {
+            line
+        }
+    }
+
+    /// Try to transform a line as an anchor link. If it is not, the line is
+    /// returned unmodified. For the best results, ensure `find_type_blocks`
+    /// has been called before.
+    fn transform_anchor(&mut self, line: String) -> String {
+        if let (Some(ref captures), Some(ref ty)) =
+            (METHOD_ANCHOR.captures(&line), &self.curr_type_block)
+        {
+            let link_name = captures.name("link_name").unwrap().as_str();
+            let additional = captures.name("additional").unwrap().as_str();
+
+            format!(
+                "{link}{ty}::{add}\n",
+                link = link_name,
+                ty = ty,
+                add = additional
+            )
+        } else {
+            line
+        }
+    }
+
+    /// Try to transform a local link to an empty string. If it is not, the
+    /// line is returned unmodified. Should be called after all the other
+    /// transformations to ensure no local link is missed.
+    fn transform_local(&mut self, line: String) -> String {
+        if let Some(captures) = LOCAL_PATH.captures(&line) {
+            let link = captures.name("elem").unwrap();
+            let path = captures.name("elem2").unwrap();
+            if path.as_str() == link.as_str() {
+                return "".into();
+            }
+        }
+
+        line
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    impl PartialEq<str> for Action {
+        fn eq(&self, other: &str) -> bool {
+            match self {
+                Action::Unchanged { line } => line == other,
+                Action::Deleted { line, pos: _ } => line == other,
+                Action::Replaced {
+                    line: _,
+                    new,
+                    pos: _,
+                } => new == other,
+            }
+        }
+    }
+
+    impl PartialEq<Action> for str {
+        fn eq(&self, other: &Action) -> bool {
+            other == self
+        }
+    }
+
+    impl PartialEq<Action> for &str {
+        fn eq(&self, other: &Action) -> bool {
+            other == *self
+        }
+    }
+
+    impl PartialEq<Action> for String {
+        fn eq(&self, other: &Action) -> bool {
+            other == self.as_str()
+        }
+    }
+
     lazy_static! {
         static ref STD_CTX: Context = Context {
             krate: "std".into(),
+            pos: 0,
             curr_type_block: None,
             end_type_block: "".into(),
             type_blocks: Vec::new(),
         };
         static ref CORE_CTX: Context = Context {
             krate: "core".into(),
+            pos: 0,
             curr_type_block: None,
             end_type_block: "".into(),
             type_blocks: Vec::new(),
@@ -552,6 +683,125 @@ mod tests {
             assert_eq!(ctx.type_blocks, [("C".into(), "    }".into())]);
             ctx.type_blocks.clear();
         }
+
+        #[test]
+        fn transform_item_unchanged() {
+            let mut ctx = STD_CTX.clone();
+
+            let lines = [
+                "let a = b;\n",
+                "// let a = b;\n",
+                "    /// let a = b;\n",
+                "//! let a = b;\n",
+                "    struct A<B: Trait> {\n",
+                "/// [module]: ./module/index.html",
+            ];
+
+            for &line in &lines {
+                assert_eq!(line, ctx.transform_item(line.into()));
+            }
+        }
+
+        #[test]
+        fn transform_item_changed() {
+            let mut ctx = STD_CTX.clone();
+
+            let line = "/// [`String`]: struct.String.html\n";
+            assert_eq!("/// [`String`]: String\n", ctx.transform_item(line.into()));
+
+            let line = "    /// [String]: struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "[`String`]: struct.String.html\n";
+            assert_eq!("[`String`]: String\n", ctx.transform_item(line.into()));
+
+            let line = "    [String]: struct.String.html\n";
+            assert_eq!("    [String]: String\n", ctx.transform_item(line.into()));
+
+            let line = "/// [`String`]: ./struct.String.html\n";
+            assert_eq!("/// [`String`]: String\n", ctx.transform_item(line.into()));
+
+            let line = "    /// [String]: ./struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "[`String`]: ./struct.String.html\n";
+            assert_eq!("[`String`]: String\n", ctx.transform_item(line.into()));
+
+            let line = "    [String]: ./struct.String.html\n";
+            assert_eq!("    [String]: String\n", ctx.transform_item(line.into()));
+
+            let line = "/// [`String`]: ./string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "    /// [String]: ./string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "[`String`]: ./string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "    [String]: ./string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "/// [`String`]: string/struct.String.html\n";
+            assert_eq!(
+                "/// [`String`]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "    /// [String]: string/struct.String.html\n";
+            assert_eq!(
+                "    /// [String]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "[`String`]: string/struct.String.html\n";
+            assert_eq!(
+                "[`String`]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+
+            let line = "    [String]: string/struct.String.html\n";
+            assert_eq!(
+                "    [String]: string::String\n",
+                ctx.transform_item(line.into())
+            );
+        }
+
+        #[test]
+        fn transform_module_unchanged() {
+            let mut ctx = STD_CTX.clone();
+
+            let lines = [
+                "let a = b;\n",
+                "// let a = b;\n",
+                "    /// let a = b;\n",
+                "//! let a = b;\n",
+                "    struct A<B: Trait> {\n",
+                "/// [item]: ./module/fn.name.html",
+            ];
+
+            for &line in &lines {
+                assert_eq!(line, ctx.transform_module(line.into()));
+            }
+        }
     }
 
     mod unchanged_lines {
@@ -562,7 +812,7 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -572,7 +822,7 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "// let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -582,7 +832,7 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -592,7 +842,7 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "//! let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -602,10 +852,10 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "  //! let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    //! let res = a + b;\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -615,10 +865,10 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: http://www.example.com/index.html#section\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [`String`]: https://www.example.com/index.html#section\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -632,16 +882,16 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: String\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    /// [String]: String\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "[`String`]: String\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    [String]: String\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -651,16 +901,16 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [String]: string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`String`]: string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [String]: string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -670,16 +920,16 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: ::std::string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    /// [String]: ::std::string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "[`String`]: ::std::string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             let line = "    [String]: ::std::string::String\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -693,28 +943,28 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`String`]: struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    /// [String]: struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "[`String`]: struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    [String]: struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "/// [`String`]: ./struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    /// [String]: ./struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "[`String`]: ./struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    [String]: ./struct.String.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -726,43 +976,49 @@ mod tests {
             let line = "/// [`String`]: ./string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./string/struct.String.html\n";
-            assert_eq!("[`String`]: string::String\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`String`]: string::String\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [String]: ./string/struct.String.html\n";
             assert_eq!(
                 "    [String]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: string/struct.String.html\n";
-            assert_eq!("[`String`]: string::String\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`String`]: string::String\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [String]: string/struct.String.html\n";
             assert_eq!(
                 "    [String]: string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -775,49 +1031,49 @@ mod tests {
             let line = "/// [`String`]: std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -831,49 +1087,49 @@ mod tests {
             let line = "/// [`String`]: ../../std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ../../std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ../../std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ../../std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./../../std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./../../std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./../../std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./../../std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: crate::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -886,49 +1142,49 @@ mod tests {
             let line = "/// [`String`]: std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./std/string/struct.String.html\n";
             assert_eq!(
                 "    [String]: std::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*CORE_CTX, ctx);
@@ -941,49 +1197,49 @@ mod tests {
             let line = "/// [`String`]: ../../string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ../../string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ../../string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ../../string/struct.String.html\n";
             assert_eq!(
                 "    [String]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`String`]: ./../../string/struct.String.html\n";
             assert_eq!(
                 "/// [`String`]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: ./../../string/struct.String.html\n";
             assert_eq!(
                 "    /// [String]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: ./../../string/struct.String.html\n";
             assert_eq!(
                 "[`String`]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [String]: ./../../string/struct.String.html\n";
             assert_eq!(
                 "    [String]: super::super::string::String\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*CORE_CTX, ctx);
@@ -996,22 +1252,25 @@ mod tests {
             let line = "/// [`String`]: struct.String.html#method.as_ref\n";
             assert_eq!(
                 "/// [`String`]: String::as_ref\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [String]: struct.String.html#method.as_ref\n";
             assert_eq!(
                 "    /// [String]: String::as_ref\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`String`]: struct.String.html#method.as_ref\n";
-            assert_eq!("[`String`]: String::as_ref\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`String`]: String::as_ref\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [String]: struct.String.html#method.as_ref\n";
             assert_eq!(
                 "    [String]: String::as_ref\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1030,7 +1289,7 @@ mod tests {
                     );
                     assert_eq!(
                         "//! [`String`]: crate::string::String::as_ref\n",
-                        check(line, &mut ctx)
+                        ctx.transform_line(line)
                     );
 
                     assert_eq!(*STD_CTX, ctx);
@@ -1047,28 +1306,28 @@ mod tests {
             let mut ctx = STD_CTX.clone();
 
             let line = "/// [`string`]: string/index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    /// [string]: string/index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "[`string`]: string/index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    [string]: string/index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "/// [`string`]: index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    /// [string]: index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "[`string`]: index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             let line = "    [string]: index.html\n";
-            assert_eq!("", check(line.into(), &mut ctx));
+            assert_eq!("", ctx.transform_line(line.into()));
 
             assert_eq!(*STD_CTX, ctx);
         }
@@ -1080,22 +1339,25 @@ mod tests {
             let line = "/// [`string`]: module/string/index.html\n";
             assert_eq!(
                 "/// [`string`]: module::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: module/string/index.html\n";
             assert_eq!(
                 "    /// [string]: module::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: module/string/index.html\n";
-            assert_eq!("[`string`]: module::string\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`string`]: module::string\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [string]: module/string/index.html\n";
             assert_eq!(
                 "    [string]: module::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1108,22 +1370,25 @@ mod tests {
             let line = "/// [`string`]: std/string/index.html\n";
             assert_eq!(
                 "/// [`string`]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: std/string/index.html\n";
             assert_eq!(
                 "    /// [string]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: std/string/index.html\n";
-            assert_eq!("[`string`]: crate::string\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`string`]: crate::string\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [string]: std/string/index.html\n";
             assert_eq!(
                 "    [string]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1136,22 +1401,25 @@ mod tests {
             let line = "/// [`string`]: ../../std/string/index.html\n";
             assert_eq!(
                 "/// [`string`]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: ../../std/string/index.html\n";
             assert_eq!(
                 "    /// [string]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: ../../std/string/index.html\n";
-            assert_eq!("[`string`]: crate::string\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "[`string`]: crate::string\n",
+                ctx.transform_line(line.into())
+            );
 
             let line = "    [string]: ../../std/string/index.html\n";
             assert_eq!(
                 "    [string]: crate::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1164,20 +1432,23 @@ mod tests {
             let line = "/// [`string`]: std/string/index.html\n";
             assert_eq!(
                 "/// [`string`]: std::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: std/string/index.html\n";
             assert_eq!(
                 "    /// [string]: std::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: std/string/index.html\n";
-            assert_eq!("[`string`]: std::string\n", check(line.into(), &mut ctx));
+            assert_eq!("[`string`]: std::string\n", ctx.transform_line(line.into()));
 
             let line = "    [string]: std/string/index.html\n";
-            assert_eq!("    [string]: std::string\n", check(line.into(), &mut ctx));
+            assert_eq!(
+                "    [string]: std::string\n",
+                ctx.transform_line(line.into())
+            );
 
             assert_eq!(*CORE_CTX, ctx);
         }
@@ -1189,25 +1460,25 @@ mod tests {
             let line = "/// [`string`]: ../../string/index.html\n";
             assert_eq!(
                 "/// [`string`]: super::super::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: ../../string/index.html\n";
             assert_eq!(
                 "    /// [string]: super::super::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: ../../string/index.html\n";
             assert_eq!(
                 "[`string`]: super::super::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [string]: ../../string/index.html\n";
             assert_eq!(
                 "    [string]: super::super::string\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1220,49 +1491,49 @@ mod tests {
             let line = "/// [`string`]: string/index.html#my-section\n";
             assert_eq!(
                 "/// [`string`]: string#my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [string]: string/index.html#my-section\n";
             assert_eq!(
                 "    /// [string]: string#my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`string`]: string/index.html#my-section\n";
             assert_eq!(
                 "[`string`]: string#my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [string]: string/index.html#my-section\n";
             assert_eq!(
                 "    [string]: string#my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "/// [`see my section`]: index.html#my-section\n";
             assert_eq!(
                 "/// [`see my section`]: #my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    /// [see my section]: index.html#my-section\n";
             assert_eq!(
                 "    /// [see my section]: #my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "[`see my section`]: index.html#my-section\n";
             assert_eq!(
                 "[`see my section`]: #my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             let line = "    [see my section]: index.html#my-section\n";
             assert_eq!(
                 "    [see my section]: #my-section\n",
-                check(line.into(), &mut ctx)
+                ctx.transform_line(line.into())
             );
 
             assert_eq!(*STD_CTX, ctx);
@@ -1279,19 +1550,19 @@ mod tests {
             ctx.end_type_block = '\n'.into();
 
             let line = "\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
             assert_eq!(ctx.curr_type_block, None);
             assert_eq!(ctx.end_type_block, "");
 
             ctx.curr_type_block = Some("String".into());
             ctx.end_type_block = "    }".into();
             let line = "\n";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
             assert_eq!(ctx.curr_type_block, Some("String".into()));
             assert_eq!(ctx.end_type_block, "    }");
 
             let line = "    }";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
             assert_eq!(ctx.curr_type_block, None);
             assert_eq!(ctx.end_type_block, "");
 
@@ -1299,7 +1570,7 @@ mod tests {
             ctx.end_type_block = "  )".into();
 
             let line = "  )";
-            assert_eq!(line, check(line.into(), &mut ctx));
+            assert_eq!(line, ctx.transform_line(line.into()));
             assert_eq!(ctx.curr_type_block, None);
             assert_eq!(ctx.end_type_block, "");
         }
@@ -1312,16 +1583,16 @@ mod tests {
 
             for &item in ITEM_TYPES {
                 let line = format!("/// [`link name`]: #{}.as_ref", item);
-                assert_eq!(line.clone(), check(line, &mut ctx));
+                assert_eq!(line.clone(), ctx.transform_line(line));
 
                 let line = format!("    //! [link name]: #{}.as_ref", item);
-                assert_eq!(line.clone(), check(line, &mut ctx));
+                assert_eq!(line.clone(), ctx.transform_line(line));
 
                 let line = format!("[`link name`]: #{}.as_ref", item);
-                assert_eq!(line.clone(), check(line, &mut ctx));
+                assert_eq!(line.clone(), ctx.transform_line(line));
 
                 let line = format!("    [link name]: #{}.as_ref", item);
-                assert_eq!(line.clone(), check(line, &mut ctx));
+                assert_eq!(line.clone(), ctx.transform_line(line));
             }
         }
 
@@ -1335,19 +1606,19 @@ mod tests {
             for &item in ITEM_TYPES {
                 let line = format!("/// [`link name`]: #{}.as_ref\n", item);
                 let expected = format!("/// [`link name`]: {}::as_ref\n", ty);
-                assert_eq!(expected, check(line, &mut ctx));
+                assert_eq!(expected, ctx.transform_line(line));
 
                 let line = format!("    //! [link name]: #{}.as_ref\n", item);
                 let expected = format!("    //! [link name]: {}::as_ref\n", ty);
-                assert_eq!(expected, check(line, &mut ctx));
+                assert_eq!(expected, ctx.transform_line(line));
 
                 let line = format!("[`link name`]: #{}.as_ref\n", item);
                 let expected = format!("[`link name`]: {}::as_ref\n", ty);
-                assert_eq!(expected, check(line, &mut ctx));
+                assert_eq!(expected, ctx.transform_line(line));
 
                 let line = format!("    [link name]: #{}.as_ref\n", item);
                 let expected = format!("    [link name]: {}::as_ref\n", ty);
-                assert_eq!(expected, check(line, &mut ctx));
+                assert_eq!(expected, ctx.transform_line(line));
             }
         }
     }
@@ -1379,7 +1650,7 @@ mod tests {
             let unchanged = ctx.clone();
 
             for &line in NO_LINKS_CODE.into_iter() {
-                assert_eq!(line, check(line.into(), &mut ctx));
+                assert_eq!(line, ctx.transform_line(line.into()));
                 assert_eq!(ctx, unchanged);
             }
         }
@@ -1397,13 +1668,13 @@ mod tests {
             let mut iter = WITH_SELF_LINKS.into_iter();
 
             let line = *iter.next().unwrap();
-            assert_eq!("/// [`b`]: A::b\n", check(line.into(), &mut ctx));
+            assert_eq!("/// [`b`]: A::b\n", ctx.transform_line(line.into()));
 
             let line = *iter.next().unwrap();
-            assert_eq!("/// [b]: A::b\n", check(line.into(), &mut ctx));
+            assert_eq!("/// [b]: A::b\n", ctx.transform_line(line.into()));
 
             for &line in iter {
-                assert_eq!(line, check(line.into(), &mut ctx));
+                assert_eq!(line, ctx.transform_line(line.into()));
             }
         }
     }
