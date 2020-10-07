@@ -1291,29 +1291,52 @@ mod tests {
         fn local_link_is_deleted() {
             let mut ctx = STD_CTX.clone();
 
-            let line = "/// [`string`]: string/index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            fn assert_deleted(a: Action) {
+                match a {
+                    Action::Deleted { line: _, pos: _ } => (),
+                    _ => assert!(false, "{} is not a Deleted action", a),
+                }
+            }
 
-            let line = "    /// [string]: string/index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let line = "/// [`string`]: string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
+
+            let line = "    //! [string]: string/index.html\n";
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "[`string`]: string/index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "    [string]: string/index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "/// [`string`]: index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "    /// [string]: index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "[`string`]: index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             let line = "    [string]: index.html\n";
-            assert_eq!(line, ctx.transform_line(line.into()));
+            let res = ctx.transform_line(line.into());
+            assert_eq!(line, res);
+            assert_deleted(res);
 
             assert_eq!(*STD_CTX, ctx);
         }
