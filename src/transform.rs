@@ -223,7 +223,11 @@ fn module_link(captures: Captures, line: String, pos: NonZeroUsize, krate: &str)
     }
 
     if let Some(mods) = captures.name("mods") {
-        new.push_str(mods.as_str().replace("/", "::").trim_end_matches("::"));
+        let mods = mods.as_str();
+        if mods.starts_with("http://") || mods.starts_with("https://") {
+            return Action::Unchanged { line };
+        }
+        new.push_str(mods.replace("/", "::").trim_end_matches("::"));
     }
 
     // Check if the link has become a local path
