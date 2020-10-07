@@ -48,7 +48,7 @@ lazy_static! {
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
         &format!(r"(?:(?:{})@)?", ITEM_TYPES.join("|")),
-        r"(?P<elem2>.*)",
+        r"(?P<elem2>.*?)",
         r"(?:!|\(\))?\n$",
     ].join("")).unwrap();
 

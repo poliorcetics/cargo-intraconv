@@ -54,42 +54,70 @@ mod regexes {
 
     #[test]
     fn local_path() {
+        fn check_captures(string: &str) {
+            let captures = LOCAL_PATH.captures(string).unwrap();
+            assert_eq!(
+                "name 1",
+                captures.name("elem").unwrap().as_str(),
+                "{}",
+                string
+            );
+            assert_eq!(
+                "item",
+                captures.name("elem2").unwrap().as_str(),
+                "{}",
+                string
+            );
+        }
+
         let string = "   //! [`name 1`]: item()\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         let string = "   //! [`name 1`]: item!\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         let string = "   /// [name 1]: item\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         let string = "   [`name 1`]: item()\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         let string = "[`name 1`]: item!\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         let string = "[name 1]: item\n";
         assert!(LOCAL_PATH.is_match(string));
+        check_captures(string);
 
         for item in ITEM_TYPES {
             let string = &format!("//! [`name 1`]: {}@item()\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
 
             let string = &format!("/// [`name 1`]: {}@item!\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
 
             let string = &format!("/// [name 1]: {}@item\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
 
             let string = &format!("[`name 1`]: {}@item()\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
 
             let string = &format!("[`name 1`]: {}@item!\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
 
             let string = &format!("[name 1]: {}@item\n", item);
             assert!(LOCAL_PATH.is_match(string));
+            check_captures(string);
         }
     }
 
