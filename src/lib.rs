@@ -36,7 +36,7 @@ pub struct Args {
 
     /// files to search links in.
     #[argh(positional)]
-    paths: Vec<PathBuf>,
+    pub paths: Vec<PathBuf>,
 }
 
 /// Takes an `Args` instance to transform the paths it contains accordingly
