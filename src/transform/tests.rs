@@ -205,6 +205,23 @@ mod regexes {
         for v in &visi_decls {
             for t in &type_decls {
                 for g in &generics {
+                    let string = &format!("{} {} Type{}\n", v, t, g);
+                    assert!(TYPE_BLOCK_START.is_match(string), "{}", string);
+
+                    let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                    assert_eq!(
+                        "Type",
+                        captures.name("type").unwrap().as_str(),
+                        "{}",
+                        string
+                    );
+                }
+            }
+        }
+
+        for v in &visi_decls {
+            for t in &type_decls {
+                for g in &generics {
                     for p in &parentheses {
                         let string = &format!("{} {} Type{} {}\n", v, t, g, p);
                         assert!(TYPE_BLOCK_START.is_match(string), "{}", string);
