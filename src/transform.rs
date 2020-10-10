@@ -90,12 +90,20 @@ pub struct Context {
     curr_type_block: Option<String>,
     /// End of the current block for `Self` (if any).
     end_type_block: String,
+    /// Line at which the current type block was declared.
+    ///
+    /// A type block cannot end before this line (obviously).
+    /// The line numbers start at one, to match those of the file being
+    /// transformed.
+    type_block_line: usize,
     // NOTE: at the moment nested type blocks are not handled.
     /// All types blocks known to the context.
     ///
     /// Calling `pop` on the `Vec` must give the next type block (if there is
     /// one).
-    type_blocks: Vec<(String, String)>,
+    ///
+    /// The tuple is (type block, end of type block, line of type block)
+    type_blocks: Vec<(String, String, usize)>,
 }
 
 impl Context {
@@ -110,10 +118,15 @@ impl Context {
             pos: 0,
             curr_type_block: None,
             end_type_block: String::new(),
+            type_block_line: usize::MAX,
             type_blocks: Vec::new(),
         }
     }
 
+    /// Iterates over a `BufRead` reader to find the links and transform them.
+    ///
+    /// This function will make only one pass over the entire buffer,
+    /// erroring if it fails to read a line.
     pub fn transform_file<R: BufRead>(&mut self, reader: R) -> io::Result<Vec<Action>> {
         // Reset the state before handling the file.
         self.pos = 0;
@@ -144,7 +157,7 @@ impl Context {
     /// This means that calling this function twice maybe have unintended consequences
     /// on the state `Context`.
     fn find_type_blocks<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
-        for line in lines {
+        for (ln, line) in lines.enumerate() {
             // Early return on context change too, after updating the context.
             if let Some(captures) = TYPE_BLOCK_START.captures(&line) {
                 let ty = captures.name("type").unwrap().as_str().into();
@@ -165,7 +178,7 @@ impl Context {
                     s
                 };
 
-                self.type_blocks.push((ty, end));
+                self.type_blocks.push((ty, end, ln + 1));
             }
         }
 
@@ -178,9 +191,10 @@ impl Context {
 
         // Updating the currently active `Self` type.
         if self.curr_type_block.is_none() {
-            if let Some((curr_type, end)) = self.type_blocks.pop() {
+            if let Some((curr_type, end, ln)) = self.type_blocks.pop() {
                 self.curr_type_block = Some(curr_type);
                 self.end_type_block = end;
+                self.type_block_line = ln;
             }
         }
 
@@ -193,10 +207,16 @@ impl Context {
         let line = self.transform_anchor(line);
 
         // When reaching the end of the current type block, update the context to
-        // reflect it.
-        if self.curr_type_block.is_some() && line.starts_with(&self.end_type_block) {
+        // reflect it. Updating the `self.type_block_line` value shouldn't
+        // be necessary and it is done for clarity and consistency, just like
+        // `self.end_type_block`.
+        if self.curr_type_block.is_some()
+            && line.starts_with(&self.end_type_block)
+            && self.pos >= self.type_block_line
+        {
             self.curr_type_block = None;
             self.end_type_block.clear();
+            self.type_block_line = usize::MAX;
         }
 
         let line = self.transform_local(line);
