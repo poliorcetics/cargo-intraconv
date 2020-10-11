@@ -284,63 +284,74 @@ impl Context {
 
     /// Try to transform a line as a module link. If it is not, the line is
     /// returned unmodified.
-    fn transform_module(&mut self, line: String) -> String {
+    fn transform_module(&self, line: String) -> String {
         let module_link = Regex::new(
             &[
                 r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
                 r"(?:\./)?",
-                r"(?P<supers>(?:\.\./)*)",
+                r"(?P<supers>(?:\.\./)+)?",
                 &format!(r"(?:(?P<crate>{})/)?", self.krate),
-                r"(?P<mods>(?:.*?/)*)",
+                r"(?P<mods>(?:[a-zA-Z0-9_]+?/)+)?",
                 r"index\.html",
-                r"(?P<section>#.+)?\n$",
+                r"(?P<section>#[a-zA-Z0-9_\-\.]+)?\n$",
             ]
             .join(""),
         )
         .unwrap();
 
-        if let Some(captures) = module_link.captures(&line) {
-            let link_name = captures.name("link_name").unwrap().as_str();
-            let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
+        let captures = match module_link.captures(&line) {
+            Some(captures) => captures,
+            None => return line,
+        };
 
-            let mut new = String::with_capacity(64);
-            new.push_str(link_name);
-            new.push_str("mod@");
+        let link_name = captures.name("link_name").unwrap().as_str();
+        let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
 
-            // Handling the start of the path.
-            if let Some(_) = captures.name("crate") {
-                // This a path contained in the crate: the start of a full path is
-                // 'crate', not the crate name in this case.
-                new.push_str("crate::");
-            } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
-                // The path is not explicitely contained in the crate but has some
-                // 'super' elements.
-                let count = supers.matches('/').count();
-                // This way we won't allocate a string only to immediately drop it.
-                for _ in 0..count {
-                    new.push_str("super::");
-                }
+        let mut new = String::with_capacity(64);
+        new.push_str(link_name);
+        new.push_str("mod@");
+
+        // Handling the start of the path.
+        if let Some(_) = captures.name("crate") {
+            // This a path contained in the crate: the start of a full path is
+            // 'crate', not the crate name in this case.
+            new.push_str("crate::");
+        } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+            // The path is not explicitely contained in the crate but has some
+            // 'super' elements.
+            let count = supers.matches('/').count();
+            // This way we won't allocate a string only to immediately drop it.
+            for _ in 0..count {
+                new.push_str("super::");
             }
-
-            // Handling the modules names themselves.
-            if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
-                // If the link is simply `index.html` the line is removed.
-                if mods.is_empty() && section.is_empty() {
-                    return "".into();
-                }
-
-                new.push_str(mods.replace("/", "::").trim_end_matches("::"));
-            }
-
-            new.push_str(section);
-            new.push('\n');
-
-            // Some module links are only a link to a section, for those
-            // don't insert the 'mod@' modifier.
-            new.replace("]: mod@#", "]: #")
-        } else {
-            line
         }
+
+        // Handling the modules names themselves.
+        if let Some(mods) = captures.name("mods").map(|x| x.as_str()) {
+            // If the link is simply `index.html` the line is removed.
+            if mods.is_empty() && section.is_empty() {
+                return "".into();
+            }
+
+            new.push_str(mods.replace("/", "::").as_ref());
+        }
+
+        new = new.trim_end_matches("::").into();
+
+        // Ensuring `self` is present when no other module name is.
+        if captures.name("crate").is_none()
+            && captures.name("supers").is_none()
+            && captures.name("mods").is_none()
+        {
+            new.push_str("self");
+        }
+
+        new.push_str(section);
+        new.push('\n');
+
+        // Some module links are only a link to a section, for those
+        // don't insert the 'mod@' modifier.
+        new.replace("]: mod@#", "]: #")
     }
 
     /// Try to transform a line as an anchor link. If it is not, the line is
