@@ -274,4 +274,20 @@ mod find_type_blocks {
     fn empty_iter() {
         assert!(Context::find_type_blocks(vec![].into_iter()).is_empty());
     }
+
+    #[test]
+    fn no_type_blocks() {
+        let no_type_block_lines = vec![
+            "let a = b;\n",
+            "if a == b { let c = Type { toto: titi }; }\n",
+            "/// struct X;\n",
+            "//! struct X;\n",
+            "// struct X;\n",
+            "  // trait T {}\n",
+            "\n",
+            "'\n'.into()\n",
+        ];
+
+        assert!(Context::find_type_blocks(no_type_block_lines.into_iter()).is_empty());
+    }
 }
