@@ -291,8 +291,13 @@ mod find_type_blocks {
         assert!(Context::find_type_blocks(no_type_block_lines.into_iter()).is_empty());
     }
 
+    // This test is VERY long. It checks (I think) all possible combinations
+    // and even some that aren't possible.
+    //
+    // Other tests will no be as thourough: they assume that if the combination
+    // they test works, the other will, by virtue of this test.
     #[test]
-    fn one_type_block() {
+    fn all_type_block_combinations() {
         use std::iter::once;
 
         let type_decls = ["struct", "trait", "enum", "union"];
@@ -357,22 +362,46 @@ mod find_type_blocks {
                 let string = format!("impl{gen} Type {long_gen} {{\n", gen = g, long_gen = lg);
                 assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
 
-                let string = format!("impl{gen} Type{gen} {long_gen} {{}}\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Type{gen} {long_gen} {{}}\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_ending);
 
-                let string = format!("impl{gen} Type{gen} {long_gen} {{\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Type{gen} {long_gen} {{\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
 
-                let string = format!("impl{gen} Trait for Type{gen} {long_gen} {{}}\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Trait for Type{gen} {long_gen} {{}}\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_ending);
 
-                let string = format!("impl{gen} Trait for Type{gen} {long_gen} {{\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Trait for Type{gen} {long_gen} {{\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
 
-                let string = format!("impl{gen} Trait{gen} for Type{gen} {long_gen} {{}}\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Trait{gen} for Type{gen} {long_gen} {{}}\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_ending);
 
-                let string = format!("impl{gen} Trait{gen} for Type{gen} {long_gen} {{\n", gen = g, long_gen = lg);
+                let string = format!(
+                    "impl{gen} Trait{gen} for Type{gen} {long_gen} {{\n",
+                    gen = g,
+                    long_gen = lg
+                );
                 assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
             }
         }
@@ -513,5 +542,30 @@ mod find_type_blocks {
                 }
             }
         }
+    }
+
+    #[test]
+    fn one_type_block_amongst_other_lines() {
+        let lines = ["let a = b;\n", "struct A();\n", "// Comment\n"];
+
+        assert_eq!(
+            Context::find_type_blocks(lines.iter()),
+            [("A".into(), '\n'.into(), 2)]
+        );
+    }
+
+    #[test]
+    fn several_type_block_amongst_other_lines() {
+        let lines = [
+            "let a = b;\n",
+            "struct A();\n",
+            "// Comment\n",
+            "struct B();\n",
+        ];
+
+        assert_eq!(
+            Context::find_type_blocks(lines.iter()),
+            [("B".into(), '\n'.into(), 4), ("A".into(), '\n'.into(), 2)]
+        );
     }
 }
