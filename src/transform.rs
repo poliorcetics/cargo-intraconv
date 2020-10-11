@@ -225,75 +225,77 @@ impl Context {
         )
         .unwrap();
 
-        if let Some(captures) = item_link.captures(&line) {
-            let link_name = captures.name("link_name").unwrap().as_str();
-            let elem = captures.name("elem").unwrap().as_str();
-            let item_type = captures.name("item_type").unwrap().as_str();
-            let add_item_type = captures.name("add_item_type").map(|x| x.as_str());
+        // Early return if the line is not an item link.
+        let captures = match item_link.captures(&line) {
+            Some(captures) => captures,
+            None => return line,
+        };
 
-            let mut new = String::with_capacity(64);
-            new.push_str(link_name);
+        let link_name = captures.name("link_name").unwrap().as_str();
+        let elem = captures.name("elem").unwrap().as_str();
+        let item_type = captures.name("item_type").unwrap().as_str();
+        let add_item_type = captures.name("add_item_type").map(|x| x.as_str());
 
-            let true_item_type = add_item_type.unwrap_or(item_type);
-            let item = match true_item_type {
-                "struct" | "enum" | "trait" | "union" | "type" => "type",
-                "const" | "static" | "value" => "value",
-                "derive" | "attr" => "macro",
-                "primitive" => "primitive",
-                "mod" => "mod",
-                _ => "",
-            };
+        let mut new = String::with_capacity(64);
+        new.push_str(link_name);
 
-            if !item.is_empty() {
-                new.push_str(item);
-                new.push('@');
-            }
+        let true_item_type = add_item_type.unwrap_or(item_type);
+        let item = match true_item_type {
+            "struct" | "enum" | "trait" | "union" | "type" => "type",
+            "const" | "static" | "value" => "value",
+            "derive" | "attr" => "macro",
+            "primitive" => "primitive",
+            "mod" => "mod",
+            _ => "",
+        };
 
-            // Handling the start of the path.
-            if let Some(_) = captures.name("crate") {
-                // This a path contained in the crate: the start of a full path is
-                // 'crate', not the crate name in this case.
-                new.push_str("crate::");
-            } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
-                // The path is not explicitely contained in the crate but has some
-                // 'super' elements.
-                let count = supers.matches('/').count();
-                // This way we won't allocate a string only to immediately drop it.
-                for _ in 0..count {
-                    new.push_str("super::");
-                }
-            }
-
-            // Intermediates element like a path through modules.
-            // In the case of a path without 'super'
-            if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
-                if intermediates != "./" {
-                    new.push_str(&intermediates.replace("/", "::"));
-                }
-            }
-
-            // The main element of the link.
-            new.push_str(elem);
-
-            // Additional linked elements like a method or a variant.
-            if let Some(additional) = captures.name("additional").map(|x| x.as_str()) {
-                new.push_str("::");
-                new.push_str(additional);
-            }
-
-            match true_item_type {
-                "fn" | "method" => new.push_str("()"),
-                "macro" => new.push('!'),
-                _ => (),
-            };
-
-            // The regexes that will follow expect a `\n` at the end of the line.
-            new.push('\n');
-
-            new
-        } else {
-            line
+        if !item.is_empty() {
+            new.push_str(item);
+            new.push('@');
         }
+
+        // Handling the start of the path.
+        if let Some(_) = captures.name("crate") {
+            // This a path contained in the crate: the start of a full path is
+            // 'crate', not the crate name in this case.
+            new.push_str("crate::");
+        } else if let Some(supers) = captures.name("supers").map(|x| x.as_str()) {
+            // The path is not explicitely contained in the crate but has some
+            // 'super' elements.
+            let count = supers.matches('/').count();
+            // This way we won't allocate a string only to immediately drop it.
+            for _ in 0..count {
+                new.push_str("super::");
+            }
+        }
+
+        // Intermediates element like a path through modules.
+        // In the case of a path without 'super'
+        if let Some(intermediates) = captures.name("intermediates").map(|x| x.as_str()) {
+            if intermediates != "./" {
+                new.push_str(&intermediates.replace("/", "::"));
+            }
+        }
+
+        // The main element of the link.
+        new.push_str(elem);
+
+        // Additional linked elements like a method or a variant.
+        if let Some(additional) = captures.name("additional").map(|x| x.as_str()) {
+            new.push_str("::");
+            new.push_str(additional);
+        }
+
+        match true_item_type {
+            "fn" | "method" => new.push_str("()"),
+            "macro" => new.push('!'),
+            _ => (),
+        };
+
+        // The regexes that will follow expect a `\n` at the end of the line.
+        new.push('\n');
+
+        new
     }
 
     /// Try to transform a line as a module link. If it is not, the line is
@@ -399,9 +401,11 @@ impl Context {
 /// The returned values are `(type name, end marker, starting line of the type block)`.
 /// The `starting line` value is found by enumerating over the iterator and
 /// adding `1` to the index.
-fn find_type_blocks<'a, S: AsRef<str>>(
-    lines: impl Iterator<Item = S>,
-) -> Vec<(String, String, usize)> {
+fn find_type_blocks<'a, S, I>(lines: I) -> Vec<(String, String, usize)>
+where
+    S: AsRef<str>,
+    I: Iterator<Item = S>,
+{
     let mut type_blocks = Vec::new();
 
     for (ln, line) in lines.enumerate() {
