@@ -569,3 +569,337 @@ mod find_type_blocks {
         );
     }
 }
+
+#[test]
+fn item_type_markers() {
+    let marked_items = [
+        "struct",
+        "enum",
+        "trait",
+        "union",
+        "type",
+        "const",
+        "static",
+        "value",
+        "derive",
+        "attr",
+        "primitive",
+        "mod",
+        "fn",
+        "method",
+        "macro",
+    ];
+
+    assert_eq!(("type@", ""), super::item_type_markers("struct"));
+    assert_eq!(("type@", ""), super::item_type_markers("enum"));
+    assert_eq!(("type@", ""), super::item_type_markers("trait"));
+    assert_eq!(("type@", ""), super::item_type_markers("union"));
+    assert_eq!(("type@", ""), super::item_type_markers("type"));
+
+    assert_eq!(("value@", ""), super::item_type_markers("const"));
+    assert_eq!(("value@", ""), super::item_type_markers("static"));
+    assert_eq!(("value@", ""), super::item_type_markers("value"));
+
+    assert_eq!(("macro@", ""), super::item_type_markers("derive"));
+    assert_eq!(("macro@", ""), super::item_type_markers("attr"));
+
+    assert_eq!(("primitive@", ""), super::item_type_markers("primitive"));
+
+    assert_eq!(("mod@", ""), super::item_type_markers("mod"));
+
+    assert_eq!(("", "()"), super::item_type_markers("fn"));
+    assert_eq!(("", "()"), super::item_type_markers("method"));
+
+    assert_eq!(("", "!"), super::item_type_markers("macro"));
+
+    for item in ITEM_TYPES {
+        if marked_items.contains(item) {
+            continue;
+        }
+
+        assert_eq!(("", ""), super::item_type_markers(item));
+    }
+}
+
+mod transform_item {
+    use super::*;
+
+    #[test]
+    fn non_item() {
+        let non_item_lines = [
+            "let a = b;\n",
+            "if a == b { let c = Type { toto: titi }; }\n",
+            "/// struct X;\n",
+            "//! struct X;\n",
+            "// struct X;\n",
+            "  // trait T {}\n",
+            "\n",
+            "'\n'.into()\n",
+            "struct A(());\n",
+            "/// [link]: https://toto.com\n",
+        ];
+
+        let ctx = Context::new("std".into());
+
+        for &line in &non_item_lines {
+            assert_eq!(line, ctx.transform_item(line.into()));
+        }
+    }
+
+    #[test]
+    fn matching_items() {
+        let ctx = Context::new("my_crate".into());
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for it in ITEM_TYPES {
+            let (start, end) = super::super::item_type_markers(it);
+            for id in &indentations {
+                for b in &bangs {
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: {item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::super::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}crate::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}crate::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    // Testing links with a sub-item (e.g a method) at the end.
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}super::super::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}crate::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: {start}crate::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+                }
+            }
+        }
+    }
+}
