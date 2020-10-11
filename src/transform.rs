@@ -33,6 +33,11 @@ const ITEM_TYPES: &[&str] = &[
     "variant",
 ];
 
+/// Markers that can be found once a link has been transformed at the start
+/// of the element, to disambiguate it, e.g. for the `usize` module and the
+/// `usize` primitive.
+const ITEM_START_MARKERS: &[&str] = &["value", "type", "macro", "primitive", "mod"];
+
 lazy_static! {
     /// Line that is a markdown link to a Rust item.
     ///
@@ -47,7 +52,7 @@ lazy_static! {
     static ref LOCAL_PATH: Regex = Regex::new(&[
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
-        &format!(r"(?:(?:{})@)?", ITEM_TYPES.join("|")),
+        &format!(r"(?:(?:{})@)?", ITEM_START_MARKERS.join("|")),
         r"(?P<elem2>.*?)",
         r"(?:!|\(\))?\n$",
     ].join("")).unwrap();
@@ -186,7 +191,7 @@ impl Context {
             self.type_block_line = usize::MAX;
         }
 
-        let line = self.transform_local(line);
+        let line = transform_local(line);
 
         if line.is_empty() {
             Action::Deleted {
@@ -374,21 +379,21 @@ impl Context {
             line
         }
     }
+}
 
-    /// Try to transform a local link to an empty string. If it is not, the
-    /// line is returned unmodified. Should be called after all the other
-    /// transformations to ensure no local link is missed.
-    fn transform_local(&mut self, line: String) -> String {
-        if let Some(captures) = LOCAL_PATH.captures(&line) {
-            let link = captures.name("elem").unwrap();
-            let path = captures.name("elem2").unwrap();
-            if path.as_str() == link.as_str() {
-                return "".into();
-            }
+/// Try to transform a local link to an empty string. If it is not, the
+/// line is returned unmodified. Should be called after all the other
+/// transformations to ensure no local link is missed.
+fn transform_local(line: String) -> String {
+    if let Some(captures) = LOCAL_PATH.captures(&line) {
+        let link = captures.name("elem").unwrap();
+        let path = captures.name("elem2").unwrap();
+        if path.as_str() == link.as_str() {
+            return "".into();
         }
-
-        line
     }
+
+    line
 }
 
 /// Returns the reversed list of type blocks found in the given iterator.
