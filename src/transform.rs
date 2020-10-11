@@ -157,12 +157,15 @@ impl Context {
     /// The returned values are `(type name, end marker, starting line of the type block)`.
     /// The `starting line` value is found by enumerating over the iterator and
     /// adding `1` to the index.
-    fn find_type_blocks<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, String, usize)> {
+    fn find_type_blocks<'a, S: AsRef<str>>(
+        lines: impl Iterator<Item = S>,
+    ) -> Vec<(String, String, usize)> {
         let mut type_blocks = Vec::new();
 
         for (ln, line) in lines.enumerate() {
+            let line = line.as_ref();
             // Early return on context change too, after updating the context.
-            if let Some(captures) = TYPE_BLOCK_START.captures(&line) {
+            if let Some(captures) = TYPE_BLOCK_START.captures(line) {
                 let ty = captures.name("type").unwrap().as_str().into();
                 let end = if line.ends_with(";\n") || line.ends_with("}\n") {
                     '\n'.into()
