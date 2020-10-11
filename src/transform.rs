@@ -206,14 +206,14 @@ impl Context {
 
     /// Try to transform a line as an item link. If it is not, the line
     /// is returned unmodified.
-    fn transform_item(&mut self, line: String) -> String {
+    fn transform_item(&self, line: String) -> String {
         let item_link = Regex::new(
             &[
                 r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
                 r"(?:\./)?",
-                r"(?P<supers>(?:\.\./)*)",
+                r"(?P<supers>(?:\.\./)+)?",
                 &format!(r"(?:(?P<crate>{})/)?", self.krate),
-                r"(?P<intermediates>(?:.*/))?",
+                r"(?P<intermediates>(?:[A-Za-z0-9_]+/)+)?",
                 &format!(r"(?P<item_type>{})\.", ITEM_TYPES.join("|")),
                 r"(?P<elem>.*)\.html",
                 &format!(
@@ -240,19 +240,8 @@ impl Context {
         new.push_str(link_name);
 
         let true_item_type = add_item_type.unwrap_or(item_type);
-        let item = match true_item_type {
-            "struct" | "enum" | "trait" | "union" | "type" => "type",
-            "const" | "static" | "value" => "value",
-            "derive" | "attr" => "macro",
-            "primitive" => "primitive",
-            "mod" => "mod",
-            _ => "",
-        };
-
-        if !item.is_empty() {
-            new.push_str(item);
-            new.push('@');
-        }
+        let (item_marker_start, item_marker_end) = item_type_markers(true_item_type);
+        new.push_str(item_marker_start);
 
         // Handling the start of the path.
         if let Some(_) = captures.name("crate") {
@@ -286,12 +275,7 @@ impl Context {
             new.push_str(additional);
         }
 
-        match true_item_type {
-            "fn" | "method" => new.push_str("()"),
-            "macro" => new.push('!'),
-            _ => (),
-        };
-
+        new.push_str(item_marker_end);
         // The regexes that will follow expect a `\n` at the end of the line.
         new.push('\n');
 
@@ -436,6 +420,21 @@ where
 
     type_blocks.reverse();
     type_blocks
+}
+
+/// Return the markers for the given item type, the one before and the one
+/// after. If necessary the '@' is present in the returned value.
+fn item_type_markers(item_type: &str) -> (&'static str, &'static str) {
+    match item_type {
+        "struct" | "enum" | "trait" | "union" | "type" => ("type@", ""),
+        "const" | "static" | "value" => ("value@", ""),
+        "derive" | "attr" => ("macro@", ""),
+        "primitive" => ("primitive@", ""),
+        "mod" => ("mod@", ""),
+        "fn" | "method" => ("", "()"),
+        "macro" => ("", "!"),
+        _ => ("", ""),
+    }
 }
 
 #[cfg(test)]
