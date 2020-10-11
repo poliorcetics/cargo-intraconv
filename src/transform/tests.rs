@@ -272,7 +272,7 @@ mod find_type_blocks {
 
     #[test]
     fn empty_iter() {
-        assert!(Context::find_type_blocks(Vec::<String>::new().into_iter()).is_empty());
+        assert!(find_type_blocks(Vec::<String>::new().into_iter()).is_empty());
     }
 
     #[test]
@@ -288,7 +288,7 @@ mod find_type_blocks {
             "'\n'.into()\n",
         ];
 
-        assert!(Context::find_type_blocks(no_type_block_lines.into_iter()).is_empty());
+        assert!(find_type_blocks(no_type_block_lines.into_iter()).is_empty());
     }
 
     // This test is VERY long. It checks (I think) all possible combinations
@@ -325,120 +325,120 @@ mod find_type_blocks {
         let with_parenthese = [("Type".into(), ')'.into(), 1)];
 
         let string = "impl Type {}\n";
-        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+        assert_eq!(find_type_blocks(once(string)), with_ending);
 
         let string = "impl Trait for Type {}\n";
-        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+        assert_eq!(find_type_blocks(once(string)), with_ending);
 
         for g in &generics {
             let string = format!("impl{gen} Type {{}}\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("impl{gen} Type {{\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+            assert_eq!(find_type_blocks(once(string)), with_bracket);
 
             let string = format!("impl{gen} Type{gen} {{}}\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("impl{gen} Type{gen} {{\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+            assert_eq!(find_type_blocks(once(string)), with_bracket);
 
             let string = format!("impl{gen} Trait for Type{gen} {{}}\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("impl{gen} Trait for Type{gen} {{\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+            assert_eq!(find_type_blocks(once(string)), with_bracket);
 
             let string = format!("impl{gen} Trait{gen} for Type{gen} {{}}\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("impl{gen} Trait{gen} for Type{gen} {{\n", gen = g);
-            assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+            assert_eq!(find_type_blocks(once(string)), with_bracket);
 
             for lg in &long_generics {
                 let string = format!("impl{gen} Type {long_gen} {{}}\n", gen = g, long_gen = lg);
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!("impl{gen} Type {long_gen} {{\n", gen = g, long_gen = lg);
-                assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                 let string = format!(
                     "impl{gen} Type{gen} {long_gen} {{}}\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!(
                     "impl{gen} Type{gen} {long_gen} {{\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                 let string = format!(
                     "impl{gen} Trait for Type{gen} {long_gen} {{}}\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!(
                     "impl{gen} Trait for Type{gen} {long_gen} {{\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                 let string = format!(
                     "impl{gen} Trait{gen} for Type{gen} {long_gen} {{}}\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!(
                     "impl{gen} Trait{gen} for Type{gen} {long_gen} {{\n",
                     gen = g,
                     long_gen = lg
                 );
-                assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                assert_eq!(find_type_blocks(once(string)), with_bracket);
             }
         }
 
         for t in &type_decls {
             // Testing with only the type declaration.
             let string = format!("{type_decl} Type;\n", type_decl = t);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("{type_decl} Type();\n", type_decl = t);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("{type_decl} Type{{}}\n", type_decl = t);
-            assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+            assert_eq!(find_type_blocks(once(string)), with_ending);
 
             let string = format!("{type_decl} Type(\n", type_decl = t);
-            assert_eq!(Context::find_type_blocks(once(string)), with_parenthese);
+            assert_eq!(find_type_blocks(once(string)), with_parenthese);
 
             let string = format!("{type_decl} Type{{\n", type_decl = t);
-            assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+            assert_eq!(find_type_blocks(once(string)), with_bracket);
 
             for v in &visi_decls {
                 // Adding the visibility.
                 let string = format!("{vis} {type_decl} Type;\n", type_decl = t, vis = v);
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!("{vis} {type_decl} Type();\n", type_decl = t, vis = v);
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!("{vis} {type_decl} Type{{}}\n", type_decl = t, vis = v);
-                assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                assert_eq!(find_type_blocks(once(string)), with_ending);
 
                 let string = format!("{vis} {type_decl} Type(\n", type_decl = t, vis = v);
-                assert_eq!(Context::find_type_blocks(once(string)), with_parenthese);
+                assert_eq!(find_type_blocks(once(string)), with_parenthese);
 
                 let string = format!("{vis} {type_decl} Type{{\n", type_decl = t, vis = v);
-                assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                 for g in &generics {
                     // Adding the visibility.
@@ -448,7 +448,7 @@ mod find_type_blocks {
                         vis = v,
                         gen = g
                     );
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!(
                         "{vis} {type_decl} Type{gen}();\n",
@@ -456,7 +456,7 @@ mod find_type_blocks {
                         vis = v,
                         gen = g
                     );
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!(
                         "{vis} {type_decl} Type{gen}{{}}\n",
@@ -464,7 +464,7 @@ mod find_type_blocks {
                         vis = v,
                         gen = g
                     );
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!(
                         "{vis} {type_decl} Type{gen}{{\n",
@@ -472,19 +472,19 @@ mod find_type_blocks {
                         vis = v,
                         gen = g
                     );
-                    assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                    assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                     let string = format!("{type_decl} Type{gen};\n", type_decl = t, gen = g);
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!("{type_decl} Type{gen}();\n", type_decl = t, gen = g);
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!("{type_decl} Type{gen}{{}}\n", type_decl = t, gen = g);
-                    assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                    assert_eq!(find_type_blocks(once(string)), with_ending);
 
                     let string = format!("{type_decl} Type{gen}{{\n", type_decl = t, gen = g);
-                    assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                    assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                     for lg in &long_generics {
                         // Adding the possible endings.
@@ -495,7 +495,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                        assert_eq!(find_type_blocks(once(string)), with_ending);
 
                         let string = format!(
                             "{vis} {type_decl} Type{gen} {long_gen} {{}}\n",
@@ -504,7 +504,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                        assert_eq!(find_type_blocks(once(string)), with_ending);
 
                         let string = format!(
                             "{vis} {type_decl} Type{gen} {long_gen} {{\n",
@@ -513,7 +513,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                        assert_eq!(find_type_blocks(once(string)), with_bracket);
 
                         let string = format!(
                             "{type_decl} Type{gen}() {long_gen};\n",
@@ -521,7 +521,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                        assert_eq!(find_type_blocks(once(string)), with_ending);
 
                         let string = format!(
                             "{type_decl} Type{gen} {long_gen} {{}}\n",
@@ -529,7 +529,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_ending);
+                        assert_eq!(find_type_blocks(once(string)), with_ending);
 
                         let string = format!(
                             "{type_decl} Type{gen} {long_gen} {{\n",
@@ -537,7 +537,7 @@ mod find_type_blocks {
                             gen = g,
                             long_gen = lg
                         );
-                        assert_eq!(Context::find_type_blocks(once(string)), with_bracket);
+                        assert_eq!(find_type_blocks(once(string)), with_bracket);
                     }
                 }
             }
@@ -549,7 +549,7 @@ mod find_type_blocks {
         let lines = ["let a = b;\n", "struct A();\n", "// Comment\n"];
 
         assert_eq!(
-            Context::find_type_blocks(lines.iter()),
+            find_type_blocks(lines.iter()),
             [("A".into(), '\n'.into(), 2)]
         );
     }
@@ -564,7 +564,7 @@ mod find_type_blocks {
         ];
 
         assert_eq!(
-            Context::find_type_blocks(lines.iter()),
+            find_type_blocks(lines.iter()),
             [("B".into(), '\n'.into(), 4), ("A".into(), '\n'.into(), 2)]
         );
     }

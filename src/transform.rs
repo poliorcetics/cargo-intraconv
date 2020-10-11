@@ -141,7 +141,7 @@ impl Context {
             lines.push(line);
         }
 
-        self.type_blocks = Self::find_type_blocks(lines.iter().map(|s| s.as_str()));
+        self.type_blocks = find_type_blocks(lines.iter());
 
         let mut actions = Vec::with_capacity(lines.len());
         for line in lines.into_iter() {
@@ -150,46 +150,6 @@ impl Context {
         }
 
         Ok(actions)
-    }
-
-    /// Returns the reversed list of type blocks found in the given iterator.
-    ///
-    /// The returned values are `(type name, end marker, starting line of the type block)`.
-    /// The `starting line` value is found by enumerating over the iterator and
-    /// adding `1` to the index.
-    fn find_type_blocks<'a, S: AsRef<str>>(
-        lines: impl Iterator<Item = S>,
-    ) -> Vec<(String, String, usize)> {
-        let mut type_blocks = Vec::new();
-
-        for (ln, line) in lines.enumerate() {
-            let line = line.as_ref();
-            // Early return on context change too, after updating the context.
-            if let Some(captures) = TYPE_BLOCK_START.captures(line) {
-                let ty = captures.name("type").unwrap().as_str().into();
-                let end = if line.ends_with(";\n") || line.ends_with("}\n") {
-                    '\n'.into()
-                } else {
-                    // When the item is not simple we try to compute what will be
-                    // the end of the block.
-                    let mut s = captures.name("spaces").unwrap().as_str().to_string();
-                    s.reserve(1);
-
-                    if let Some(_) = captures.name("parenthese") {
-                        s.push(')');
-                    } else {
-                        s.push('}');
-                    }
-
-                    s
-                };
-
-                type_blocks.push((ty, end, ln + 1));
-            }
-        }
-
-        type_blocks.reverse();
-        type_blocks
     }
 
     /// Transform a single line, returning the action.
@@ -432,6 +392,46 @@ impl Context {
 
         line
     }
+}
+
+/// Returns the reversed list of type blocks found in the given iterator.
+///
+/// The returned values are `(type name, end marker, starting line of the type block)`.
+/// The `starting line` value is found by enumerating over the iterator and
+/// adding `1` to the index.
+fn find_type_blocks<'a, S: AsRef<str>>(
+    lines: impl Iterator<Item = S>,
+) -> Vec<(String, String, usize)> {
+    let mut type_blocks = Vec::new();
+
+    for (ln, line) in lines.enumerate() {
+        let line = line.as_ref();
+        // Early return on context change too, after updating the context.
+        if let Some(captures) = TYPE_BLOCK_START.captures(line) {
+            let ty = captures.name("type").unwrap().as_str().into();
+            let end = if line.ends_with(";\n") || line.ends_with("}\n") {
+                '\n'.into()
+            } else {
+                // When the item is not simple we try to compute what will be
+                // the end of the block.
+                let mut s = captures.name("spaces").unwrap().as_str().to_string();
+                s.reserve(1);
+
+                if let Some(_) = captures.name("parenthese") {
+                    s.push(')');
+                } else {
+                    s.push('}');
+                }
+
+                s
+            };
+
+            type_blocks.push((ty, end, ln + 1));
+        }
+    }
+
+    type_blocks.reverse();
+    type_blocks
 }
 
 #[cfg(test)]
