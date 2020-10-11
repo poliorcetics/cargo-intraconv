@@ -141,7 +141,7 @@ impl Context {
             lines.push(line);
         }
 
-        self.find_type_blocks(lines.iter().map(|s| s.as_str()));
+        self.type_blocks = Self::find_type_blocks(lines.iter().map(|s| s.as_str()));
 
         let mut actions = Vec::with_capacity(lines.len());
         for line in lines.into_iter() {
@@ -152,11 +152,14 @@ impl Context {
         Ok(actions)
     }
 
-    /// Fills `self.type_block` with the types that are encountered, reversing the
-    /// vector after they have all been added.
-    /// This means that calling this function twice maybe have unintended consequences
-    /// on the state `Context`.
-    fn find_type_blocks<'a>(&mut self, lines: impl Iterator<Item = &'a str>) {
+    /// Returns the reversed list of type blocks found in the given iterator.
+    ///
+    /// The returned values are `(type name, end marker, starting line of the type block)`.
+    /// The `starting line` value is found by enumerating over the iterator and
+    /// adding `1` to the index.
+    fn find_type_blocks<'a>(lines: impl Iterator<Item = &'a str>) -> Vec<(String, String, usize)> {
+        let mut type_blocks = Vec::new();
+
         for (ln, line) in lines.enumerate() {
             // Early return on context change too, after updating the context.
             if let Some(captures) = TYPE_BLOCK_START.captures(&line) {
@@ -178,11 +181,12 @@ impl Context {
                     s
                 };
 
-                self.type_blocks.push((ty, end, ln + 1));
+                type_blocks.push((ty, end, ln + 1));
             }
         }
 
-        self.type_blocks.reverse();
+        type_blocks.reverse();
+        type_blocks
     }
 
     /// Transform a single line, returning the action.
