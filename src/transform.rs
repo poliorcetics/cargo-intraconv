@@ -47,6 +47,9 @@ lazy_static! {
     /// transforming it but making it point to something else silently.
     static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
 
+    /// If this regex matches, the tested line is probably a markdown link.
+    static ref LOOKS_LIKE_A_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+").unwrap();
+
     /// Will search for a doc comment link and be used to check if the two
     /// elements are the same, indicating a local path.
     static ref LOCAL_PATH: Regex = Regex::new(&[
@@ -160,8 +163,6 @@ impl Context {
 
     /// Transform a single line, returning the action.
     fn transform_line(&mut self, line: String) -> Action {
-        let copy = line.clone();
-
         // Updating the currently active `Self` type.
         if self.curr_type_block.is_none() {
             if let Some((curr_type, end, ln)) = self.type_blocks.pop() {
@@ -171,9 +172,17 @@ impl Context {
             }
         }
 
-        if HTTP_LINK.is_match(&line) {
+        // Detect as soon as possible when a line is not a link and so should
+        // not be transformed.
+        if self.end_type_block.is_empty()
+            && (HTTP_LINK.is_match(&line) || !LOOKS_LIKE_A_LINK.is_match(&line))
+        {
             return Action::Unchanged { line };
         }
+
+        // Clone here and not before to avoid doing it when the line is an
+        // HTTP link.
+        let copy = line.clone();
 
         let line = self.transform_item(line);
         let line = self.transform_module(line);
@@ -370,7 +379,7 @@ impl Context {
             let link_name = captures.name("link_name").unwrap().as_str();
             let item_type = captures.name("item_type").unwrap().as_str();
             let additional = captures.name("additional").unwrap().as_str();
-            
+
             let (start, end) = item_type_markers(item_type);
 
             format!(
