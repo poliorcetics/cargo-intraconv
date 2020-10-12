@@ -97,14 +97,14 @@ pub fn run(args: Args) {
         }
 
         if !args.apply {
-            return;
+            continue;
         }
 
         let mut file = match OpenOptions::new().write(true).truncate(true).open(path) {
             Ok(file) => file,
             Err(err) => {
                 eprintln!("Failed to open file '{}' for write: {}", &path_display, err);
-                return;
+                continue;
             }
         };
 
@@ -112,7 +112,7 @@ pub fn run(args: Args) {
             Ok(file) => file,
             Err(err) => {
                 eprintln!("Failed to write to '{}': {}", &path_display, err);
-                return;
+                continue;
             }
         };
     }
