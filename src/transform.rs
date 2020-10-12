@@ -64,9 +64,10 @@ lazy_static! {
     static ref METHOD_ANCHOR: Regex = Regex::new(&[
         r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
         &format!(
-            r"#(?:{})\.(?P<additional>[\w_]+)\n$",
+            r"#(?P<item_type>{})",
             ITEM_TYPES.join("|")
         ),
+        r"\.(?P<additional>[\w_]+)\n$",
     ].join(""))
     .unwrap();
 
@@ -362,18 +363,23 @@ impl Context {
     /// Try to transform a line as an anchor link. If it is not, the line is
     /// returned unmodified. For the best results, ensure `find_type_blocks`
     /// has been called before.
-    fn transform_anchor(&mut self, line: String) -> String {
+    fn transform_anchor(&self, line: String) -> String {
         if let (Some(ref captures), Some(ref ty)) =
             (METHOD_ANCHOR.captures(&line), &self.curr_type_block)
         {
             let link_name = captures.name("link_name").unwrap().as_str();
+            let item_type = captures.name("item_type").unwrap().as_str();
             let additional = captures.name("additional").unwrap().as_str();
+            
+            let (start, end) = item_type_markers(item_type);
 
             format!(
-                "{link}{ty}::{add}\n",
+                "{link}{s}{ty}::{add}{e}\n",
                 link = link_name,
                 ty = ty,
-                add = additional
+                add = additional,
+                s = start,
+                e = end,
             )
         } else {
             line

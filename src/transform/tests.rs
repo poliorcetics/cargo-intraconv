@@ -1,3 +1,8 @@
+// TODO:
+//
+// - transform_anchor
+// - transform_line
+// - transform_file
 use super::*;
 
 impl PartialEq<str> for Action {
@@ -908,8 +913,8 @@ mod transform_module {
     use super::*;
 
     #[test]
-    fn non_item() {
-        let non_item_lines = [
+    fn non_module() {
+        let non_module_lines = [
             "let a = b;\n",
             "if a == b { let c = Type { toto: titi }; }\n",
             "/// struct X;\n",
@@ -924,7 +929,7 @@ mod transform_module {
 
         let ctx = Context::new("std".into());
 
-        for &line in &non_item_lines {
+        for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
     }
@@ -1138,8 +1143,8 @@ mod transform_local {
     use super::*;
 
     #[test]
-    fn non_item() {
-        let non_item_lines = [
+    fn non_local() {
+        let non_local_lines = [
             "let a = b;\n",
             "if a == b { let c = Type { toto: titi }; }\n",
             "/// struct X;\n",
@@ -1154,16 +1159,17 @@ mod transform_local {
             "/// [Link]: super::Link\n",
         ];
 
-        for &line in &non_item_lines {
+        for &line in &non_local_lines {
             assert_eq!(line, transform_local(line.into()));
         }
     }
+
     #[test]
     fn matching_local_links() {
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
 
-        let exp = format!("");
+        let exp = "";
 
         for item in ITEM_TYPES {
             let (start, end) = item_type_markers(item);
@@ -1231,8 +1237,62 @@ mod transform_local {
     }
 }
 
-// TODO:
-//
-// - transform_anchor
-// - transform_line
-// - transform_file
+mod transform_anchor {
+    use super::*;
+
+    #[test]
+    fn non_anchor() {
+        let non_anchor_lines = [
+            "let a = b;\n",
+            "if a == b { let c = Type { toto: titi }; }\n",
+            "/// struct X;\n",
+            "//! struct X;\n",
+            "// struct X;\n",
+            "  // trait T {}\n",
+            "\n",
+            "'\n'.into()\n",
+            "struct A(());\n",
+            "/// [link]: https://toto.com\n",
+            "/// [non local link]: Link\n",
+            "/// [Link]: super::Link\n",
+        ];
+
+        let ctx = Context::new("my_crate".into());
+
+        for &line in &non_anchor_lines {
+            assert_eq!(line, ctx.transform_anchor(line.into()));
+        }
+    }
+
+    #[test]
+    fn matching_anchors() { 
+        let none_ctx = Context::new("my_crate_none".into());
+        let mut some_ctx = Context::new("my_crate_some".into());
+        
+        some_ctx.curr_type_block = Some("Type".into());
+        some_ctx.end_type_block = "}".into();
+        some_ctx.type_block_line = 1;
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+
+        for item in ITEM_TYPES {
+            let (start, end) = item_type_markers(item);
+
+            for i in &indentations {
+                for b in &bangs {
+                    let line = format!("{id}//{bg} [method]: #{it}.name\n", id = i, bg = b, it = item);
+                    let exp = format!("{id}//{bg} [method]: {s}Type::name{e}\n", id = i, bg = b, s = start, e = end);
+                    assert_eq!(line.clone(), none_ctx.transform_anchor(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_anchor(line));
+
+                    let line = format!("{id}//{bg} [`method`]: #{it}.name\n", id = i, bg = b, it = item);
+                    let exp = format!("{id}//{bg} [`method`]: {s}Type::name{e}\n", id = i, bg = b, s = start, e = end);
+                    assert_eq!(line.clone(), none_ctx.transform_anchor(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_anchor(line));
+                }
+            }
+        }
+    }
+}
