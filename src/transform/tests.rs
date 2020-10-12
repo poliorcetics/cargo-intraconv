@@ -1,6 +1,5 @@
 // TODO:
 //
-// - transform_anchor
 // - transform_line
 // - transform_file
 use super::*;
