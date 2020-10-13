@@ -40,7 +40,7 @@ pub struct Args {
     #[argh(switch, short = 'a')]
     apply: bool,
 
-    /// use rustdoc disambiguators in front of the transformed links 
+    /// use rustdoc disambiguators in front of the transformed links
     /// ('type@', ...). Ending disambiguators like '()' and '!' are always
     /// added, regardless of this option.
     #[argh(switch, short = 'd')]
@@ -56,12 +56,16 @@ pub struct Args {
 pub fn run(args: Args) {
     if args.paths.is_empty() {
         eprintln!("No paths were passed as arguments.");
-        eprintln!("usage: cargo-intraconv [<paths...>] [-c <crate>] [-a]");
+        eprintln!("usage: cargo-intraconv [<paths...>] [-c <crate>] [-a] [-d]");
         process::exit(1);
     }
 
     let mut ctx = Context::new(args.krate, args.disambiguate);
     for path in args.paths {
+        if path.as_os_str() == "intraconv" && !path.exists() {
+            continue;
+        }
+
         // First display the path of the file that is about to be opened and tested.
         let path_display = path.display().to_string();
         println!("{}", &path_display);
