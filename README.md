@@ -3,9 +3,12 @@
 `cargo-intraconv` is a simple helper which will transform Markdown links to
 [intra-doc links] in Rust projects when appropriate.
 
-> Note: you will need you need nightly rustdoc or to wait until stabilization.
+> Note: you will need you need beta/nightly rustdoc or to wait until
+> stabilization of intra-doc links, which is underway for **1.48.0** !
+>
 > This crate can still be used to help updating the documentation for
-> `rust-lang/rust` itself and it is its intended usage right now.
+> `rust-lang/rust` itself and it is its intended usage right now. You can
+> also use it for projects depending on beta/nightly.
 
 [intra-doc links]: https://doc.rust-lang.org/nightly/rustdoc/unstable-features.html#linking-to-items-by-type
 
@@ -28,9 +31,9 @@ the person writing them in the first place and subsequent readers reviewing them
 They are also easier to reason about since file hierachy does not affect them.
 
 ```rust
-/// [`make_ascii_uppercase`]: u8::make_ascii_uppercase
+/// [`make_ascii_uppercase`]: u8::make_ascii_uppercase()
 
-/// [`f32::classify`]: std::f32::classify
+/// [`f32::classify`]: std::f32::classify()
 ```
 
 ## Why this crate ?
@@ -51,10 +54,16 @@ $ cargo intraconv path/to/std/file.rs
 $ cargo intraconv path/to/core/file.rs -c core # Specifying the root crate
 
 $ cargo intraconv path/to/std/file.rs -a # Applying the changes
+
+$ cargo intraconv path/to/my/file.rs -d # Disambiguate links by prefixing them
+                                        # with their rustdoc group ('type@', ...)
 ```
 
 It is possible to give multiple paths to files. Note that directories will not
-work.
+work. Giving no paths will produce an error.
+
+> Note: `intraconv` will accept any file, no just `.rs` ones: you can use it
+> on markdown files that are included as docs in Rust files for example.
 
 ## Known issues
 
@@ -65,10 +74,13 @@ For issues about intra-doc links you should look-up [the issues at `rust-lang/ru
 
 For issues about this crate, here are a few:
 
-  - `#method.method_name` links outside of an `impl` block are not transformed
-    right now, this is a bug and will be fixed in a future version.
-  - `[Item](link)` links are not transformed. This is also a bug and will be
-    fixed in a future version.
+  - `#method.method_name` links will sometimes be transformed to point to the
+    wrong item. This is because `intraconv` uses regexes to find links and the
+    types related to them, which is not perfect.
+  - `[Item](link)` links are not transformed. There are a lot more false 
+    positives with those so, as long as no one wants them, I will not add them.
+    I'm still open to a PR adding them if you wish to do so and will gladly
+    help you if needed !
 
 [the issues at `rust-lang/rust`]: https://github.com/rust-lang/rust/issues?q=is%3Aopen+label%3AA-intra-doc-links+label%3AC-bug
 
