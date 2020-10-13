@@ -261,7 +261,10 @@ impl Context {
 
         let true_item_type = add_item_type.unwrap_or(item_type);
         let (item_marker_start, item_marker_end) = item_type_markers(true_item_type);
-        new.push_str(item_marker_start);
+
+        if self.disambiguate {
+            new.push_str(item_marker_start);
+        }
 
         // Handling the start of the path.
         if let Some(_) = captures.name("crate") {
@@ -329,7 +332,9 @@ impl Context {
 
         let mut new = String::with_capacity(64);
         new.push_str(link_name);
-        new.push_str("mod@");
+        if self.disambiguate {
+            new.push_str("mod@");
+        }
 
         // Handling the start of the path.
         if let Some(_) = captures.name("crate") {
@@ -386,6 +391,8 @@ impl Context {
             let additional = captures.name("additional").unwrap().as_str();
 
             let (start, end) = item_type_markers(item_type);
+
+            let start = if self.disambiguate { start } else { "" };
 
             format!(
                 "{link}{s}{ty}::{add}{e}\n",
