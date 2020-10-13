@@ -697,7 +697,11 @@ mod transform_item {
         ];
 
         let ctx = Context::new("std".into(), true);
+        for &line in &non_item_lines {
+            assert_eq!(line, ctx.transform_item(line.into()));
+        }
 
+        let ctx = Context::new("std".into(), false);
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
         }
@@ -959,6 +963,247 @@ mod transform_item {
             }
         }
     }
+
+    #[test]
+    fn matching_items_no_disambiguate() {
+        let ctx = Context::new("my_crate".into(), false);
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for it in ITEM_TYPES {
+            let (_, end) = super::super::item_type_markers(it);
+            for id in &indentations {
+                for b in &bangs {
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: {item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    // Testing links with a sub-item (e.g a method) at the end.
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
+                }
+            }
+        }
+    }
 }
 
 mod transform_module {
@@ -980,7 +1225,11 @@ mod transform_module {
         ];
 
         let ctx = Context::new("std".into(), true);
+        for &line in &non_module_lines {
+            assert_eq!(line, ctx.transform_module(line.into()));
+        }
 
+        let ctx = Context::new("std".into(), false);
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
@@ -1189,6 +1438,206 @@ mod transform_module {
             }
         }
     }
+
+    #[test]
+    fn matching_modules_no_disambiguate() {
+        let ctx = Context::new("my_crate".into(), false);
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for i in &indentations {
+            for b in &bangs {
+                let line = format!("{ind}//{bang} [mod link]: index.html\n", ind = i, bang = b);
+                let exp = format!("{ind}//{bang} [mod link]: self\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: self#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: super\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: crate\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: crate\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: self\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: self#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./../index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: mod1::mod2\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super::mod1::mod2\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./../mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super::mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate::mod1::mod2\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate::mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_module(line));
+            }
+        }
+    }
 }
 
 mod transform_local {
@@ -1310,7 +1759,11 @@ mod transform_anchor {
         ];
 
         let ctx = Context::new("my_crate".into(), true);
+        for &line in &non_anchor_lines {
+            assert_eq!(line, ctx.transform_anchor(line.into()));
+        }
 
+        let ctx = Context::new("my_crate".into(), false);
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
         }
@@ -1368,6 +1821,57 @@ mod transform_anchor {
             }
         }
     }
+
+    #[test]
+    fn matching_anchors_no_disambiguate() {
+        let none_ctx = Context::new("my_crate_none".into(), false);
+        let mut some_ctx = Context::new("my_crate_some".into(), false);
+
+        some_ctx.curr_type_block = Some("Type".into());
+        some_ctx.end_type_block = "}".into();
+        some_ctx.type_block_line = 1;
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for item in ITEM_TYPES {
+            let (_, end) = item_type_markers(item);
+
+            for i in &indentations {
+                for b in &bangs {
+                    let line = format!(
+                        "{id}//{bg} [method]: #{it}.name\n",
+                        id = i,
+                        bg = b,
+                        it = item
+                    );
+                    let exp = format!(
+                        "{id}//{bg} [method]: Type::name{e}\n",
+                        id = i,
+                        bg = b,
+                        e = end
+                    );
+                    assert_eq!(line.clone(), none_ctx.transform_anchor(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_anchor(line));
+
+                    let line = format!(
+                        "{id}//{bg} [`method`]: #{it}.name\n",
+                        id = i,
+                        bg = b,
+                        it = item
+                    );
+                    let exp = format!(
+                        "{id}//{bg} [`method`]: Type::name{e}\n",
+                        id = i,
+                        bg = b,
+                        e = end
+                    );
+                    assert_eq!(line.clone(), none_ctx.transform_anchor(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_anchor(line));
+                }
+            }
+        }
+    }
 }
 
 mod transform_line {
@@ -1391,7 +1895,11 @@ mod transform_line {
         ];
 
         let mut ctx = Context::new("my_crate".into(), true);
+        for &line in &non_line_lines {
+            assert_eq!(line, ctx.transform_line(line.into()));
+        }
 
+        let mut ctx = Context::new("my_crate".into(), false);
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
         }
@@ -1409,10 +1917,37 @@ mod transform_line {
         assert_eq!("}", ctx.end_type_block);
         assert_eq!(1, ctx.type_block_line);
         assert!(ctx.type_blocks.is_empty());
+
+        // No disambiguate
+        let mut ctx = Context::new("my_crate".into(), false);
+
+        ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
+
+        ctx.transform_line("".into());
+
+        assert_eq!(Some("Type".into()), ctx.curr_type_block);
+        assert_eq!("}", ctx.end_type_block);
+        assert_eq!(1, ctx.type_block_line);
+        assert!(ctx.type_blocks.is_empty());
     }
 
     #[test]
     fn type_block_some_to_none() {
+        let mut ctx = Context::new("my_crate".into(), true);
+
+        ctx.pos = 2;
+
+        ctx.curr_type_block = Some("Type".into());
+        ctx.end_type_block = "}".into();
+        ctx.type_block_line = 1;
+
+        ctx.transform_line("}".into());
+
+        assert_eq!(None, ctx.curr_type_block);
+        assert_eq!("", ctx.end_type_block);
+        assert_eq!(usize::MAX, ctx.type_block_line);
+
+        // No disambiguate
         let mut ctx = Context::new("my_crate".into(), true);
 
         ctx.pos = 2;
@@ -1472,6 +2007,57 @@ mod transform_line {
                         id = i,
                         bg = b,
                         s = start,
+                        e = end
+                    );
+                    assert_eq!(line.clone(), none_ctx.transform_line(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_line(line));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn matching_lines_anchor_no_disambiguate() {
+        let mut none_ctx = Context::new("my_crate_none".into(), false);
+        let mut some_ctx = Context::new("my_crate_some".into(), false);
+
+        some_ctx.curr_type_block = Some("Type".into());
+        some_ctx.end_type_block = "}".into();
+        some_ctx.type_block_line = 1;
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for item in ITEM_TYPES {
+            let (_, end) = item_type_markers(item);
+
+            for i in &indentations {
+                for b in &bangs {
+                    let line = format!(
+                        "{id}//{bg} [method]: #{it}.name\n",
+                        id = i,
+                        bg = b,
+                        it = item
+                    );
+                    let exp = format!(
+                        "{id}//{bg} [method]: Type::name{e}\n",
+                        id = i,
+                        bg = b,
+                        e = end
+                    );
+                    assert_eq!(line.clone(), none_ctx.transform_line(line.clone()));
+                    assert_eq!(exp, some_ctx.transform_line(line));
+
+                    let line = format!(
+                        "{id}//{bg} [`method`]: #{it}.name\n",
+                        id = i,
+                        bg = b,
+                        it = item
+                    );
+                    let exp = format!(
+                        "{id}//{bg} [`method`]: Type::name{e}\n",
+                        id = i,
+                        bg = b,
                         e = end
                     );
                     assert_eq!(line.clone(), none_ctx.transform_line(line.clone()));
@@ -1545,6 +2131,74 @@ mod transform_line {
                         ind = i,
                         bang = b,
                         s = start,
+                        e = end
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn matching_lines_local_links_no_disambiguate() {
+        let mut ctx = Context::new("my_crate".into(), false);
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for item in ITEM_TYPES {
+            let (_, end) = item_type_markers(item);
+
+            for i in &indentations {
+                for b in &bangs {
+                    let line = format!("{ind}//{bang} [link]: link\n", ind = i, bang = b);
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [super::Type]: super::Type\n",
+                        ind = i,
+                        bang = b
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [link]: link{e}\n",
+                        ind = i,
+                        bang = b,
+                        e = end
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [super::Type]: super::Type{e}\n",
+                        ind = i,
+                        bang = b,
+                        e = end
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!("{ind}//{bang} [`link`]: link\n", ind = i, bang = b);
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [`super::Type`]: super::Type\n",
+                        ind = i,
+                        bang = b
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [`link`]: link{e}\n",
+                        ind = i,
+                        bang = b,
+                        e = end
+                    );
+                    assert!(ctx.transform_line(line).is_deleted());
+
+                    let line = format!(
+                        "{ind}//{bang} [`super::Type`]: super::Type{e}\n",
+                        ind = i,
+                        bang = b,
                         e = end
                     );
                     assert!(ctx.transform_line(line).is_deleted());
@@ -1749,6 +2403,206 @@ mod transform_line {
                 );
                 let exp = format!(
                     "{ind}//{bang} [mod link]: mod@crate::mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+            }
+        }
+    }
+
+    #[test]
+    fn matching_lines_modules_no_disambiguate() {
+        let mut ctx = Context::new("my_crate".into(), false);
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for i in &indentations {
+            for b in &bangs {
+                let line = format!("{ind}//{bang} [mod link]: index.html\n", ind = i, bang = b);
+                let exp = format!("{ind}//{bang} [mod link]: self\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: self#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: super\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: crate\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: crate\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: self\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: self#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./../index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!("{ind}//{bang} [mod link]: mod1::mod2\n", ind = i, bang = b);
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ../mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super::mod1::mod2\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./../mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: super::mod1::mod2#section\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate::mod1::mod2\n",
+                    ind = i,
+                    bang = b
+                );
+                assert_eq!(exp, ctx.transform_line(line));
+
+                let line = format!(
+                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    ind = i,
+                    bang = b
+                );
+                let exp = format!(
+                    "{ind}//{bang} [mod link]: crate::mod1::mod2#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1977,6 +2831,220 @@ mod transform_line {
                         ind = id,
                         bang = b,
                         start = start,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn matching_lines_items_no_disambiguate() {
+        let mut ctx = Context::new("my_crate".into(), false);
+
+        let indentations = ["", "  ", "    "];
+        let bangs = ["/", "!"];
+
+        for it in ITEM_TYPES {
+            let (_, end) = super::super::item_type_markers(it);
+
+            for id in &indentations {
+                for b in &bangs {
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        ind = id,
+                        bang = b,
+                        item = it
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::mod1::mod2::Item{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    // Testing links with a sub-item (e.g a method) at the end.
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ./../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: super::super::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
+                        end = end
+                    );
+                    assert_eq!(exp, ctx.transform_line(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        ind = id,
+                        bang = b,
+                        add = it,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::mod1::mod2::Item::subitem{end}\n",
+                        ind = id,
+                        bang = b,
                         end = end
                     );
                     assert_eq!(exp, ctx.transform_line(link));
