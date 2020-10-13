@@ -60,7 +60,7 @@ pub fn run(args: Args) {
         process::exit(1);
     }
 
-    let mut ctx = Context::new(args.krate);
+    let mut ctx = Context::new(args.krate, args.disambiguate);
     for path in args.paths {
         // First display the path of the file that is about to be opened and tested.
         let path_display = path.display().to_string();

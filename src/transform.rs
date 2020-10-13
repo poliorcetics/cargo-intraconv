@@ -36,7 +36,7 @@ const ITEM_TYPES: &[&str] = &[
 /// Markers that can be found once a link has been transformed at the start
 /// of the element, to disambiguate it, e.g. for the `usize` module and the
 /// `usize` primitive.
-const ITEM_START_MARKERS: &[&str] = &["value", "type", "macro", "primitive", "mod"];
+const ITEM_START_MARKERS: &[&str] = &["value", "type", "macro", "prim", "mod"];
 
 lazy_static! {
     /// Line that is a markdown link to a Rust item.
@@ -93,6 +93,10 @@ pub struct Context {
     /// Name of the crate on which the tool is run.
     /// It must have been checked to be a correct identifier for Rust.
     krate: String,
+    /// Use rustdoc disambiguators in front of the transformed links
+    /// ('type@', ...). Ending disambiguators like '()' and '!' are always
+    /// added, regardless of this option.
+    disambiguate: bool,
     /// Current line number.
     pos: usize,
     /// Name of the type that is `Self` for the current block.
@@ -121,9 +125,10 @@ impl Context {
     /// NOTE: the `krate` parameter must contain a valid Rust identifier for a
     /// crate name (basically the regex `[\w_]+`) else the links that use it
     /// will be broken by the conversion.
-    pub fn new(krate: String) -> Self {
+    pub fn new(krate: String, disambiguate: bool) -> Self {
         Self {
             krate,
+            disambiguate,
             pos: 0,
             curr_type_block: None,
             end_type_block: String::new(),
@@ -460,7 +465,7 @@ fn item_type_markers(item_type: &str) -> (&'static str, &'static str) {
         "struct" | "enum" | "trait" | "union" | "type" => ("type@", ""),
         "const" | "static" | "value" => ("value@", ""),
         "derive" | "attr" => ("macro@", ""),
-        "primitive" => ("primitive@", ""),
+        "primitive" => ("prim@", ""),
         "mod" => ("mod@", ""),
         "fn" | "method" => ("", "()"),
         "macro" => ("", "!"),

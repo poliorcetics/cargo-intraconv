@@ -310,6 +310,7 @@ mod regexes {
 fn new() {
     let ctx = Context {
         krate: "name".into(),
+        disambiguate: false,
         pos: 0,
         curr_type_block: None,
         end_type_block: String::new(),
@@ -317,8 +318,10 @@ fn new() {
         type_blocks: Vec::new(),
     };
 
-    assert_eq!(Context::new("name".into()), ctx);
-    assert_ne!(Context::new("not_name".into()), ctx);
+    assert_eq!(Context::new("name".into(), false), ctx);
+    assert_ne!(Context::new("name".into(), true), ctx);
+    assert_ne!(Context::new("not_name".into(), false), ctx);
+    assert_ne!(Context::new("not_name".into(), true), ctx);
 }
 
 mod find_type_blocks {
@@ -657,7 +660,7 @@ fn item_type_markers() {
     assert_eq!(("macro@", ""), super::item_type_markers("derive"));
     assert_eq!(("macro@", ""), super::item_type_markers("attr"));
 
-    assert_eq!(("primitive@", ""), super::item_type_markers("primitive"));
+    assert_eq!(("prim@", ""), super::item_type_markers("primitive"));
 
     assert_eq!(("mod@", ""), super::item_type_markers("mod"));
 
@@ -693,7 +696,7 @@ mod transform_item {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into());
+        let ctx = Context::new("std".into(), true);
 
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
@@ -702,7 +705,7 @@ mod transform_item {
 
     #[test]
     fn matching_items() {
-        let ctx = Context::new("my_crate".into());
+        let ctx = Context::new("my_crate".into(), true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -976,7 +979,7 @@ mod transform_module {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into());
+        let ctx = Context::new("std".into(), true);
 
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
@@ -985,7 +988,7 @@ mod transform_module {
 
     #[test]
     fn matching_modules() {
-        let ctx = Context::new("my_crate".into());
+        let ctx = Context::new("my_crate".into(), true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1306,7 +1309,7 @@ mod transform_anchor {
             "/// [Link]: super::Link\n",
         ];
 
-        let ctx = Context::new("my_crate".into());
+        let ctx = Context::new("my_crate".into(), true);
 
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
@@ -1315,8 +1318,8 @@ mod transform_anchor {
 
     #[test]
     fn matching_anchors() {
-        let none_ctx = Context::new("my_crate_none".into());
-        let mut some_ctx = Context::new("my_crate_some".into());
+        let none_ctx = Context::new("my_crate_none".into(), true);
+        let mut some_ctx = Context::new("my_crate_some".into(), true);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1387,7 +1390,7 @@ mod transform_line {
             "/// [Link]: super::Link\n",
         ];
 
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
@@ -1396,7 +1399,7 @@ mod transform_line {
 
     #[test]
     fn type_block_none_to_some() {
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
 
@@ -1410,7 +1413,7 @@ mod transform_line {
 
     #[test]
     fn type_block_some_to_none() {
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         ctx.pos = 2;
 
@@ -1427,8 +1430,8 @@ mod transform_line {
 
     #[test]
     fn matching_lines_anchor() {
-        let mut none_ctx = Context::new("my_crate_none".into());
-        let mut some_ctx = Context::new("my_crate_some".into());
+        let mut none_ctx = Context::new("my_crate_none".into(), true);
+        let mut some_ctx = Context::new("my_crate_some".into(), true);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1480,7 +1483,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_local_links() {
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1552,7 +1555,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_modules() {
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1756,7 +1759,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_items() {
-        let mut ctx = Context::new("my_crate".into());
+        let mut ctx = Context::new("my_crate".into(), true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
