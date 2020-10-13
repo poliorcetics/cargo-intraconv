@@ -40,6 +40,12 @@ pub struct Args {
     #[argh(switch, short = 'a')]
     apply: bool,
 
+    /// use rustdoc disambiguators in front of the transformed links 
+    /// ('type@', ...). Ending disambiguators like '()' and '!' are always
+    /// added, regardless of this option.
+    #[argh(switch, short = 'd')]
+    disambiguate: bool,
+
     /// files to search links in.
     #[argh(positional)]
     paths: Vec<PathBuf>,
