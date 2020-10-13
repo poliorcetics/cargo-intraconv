@@ -48,7 +48,7 @@ lazy_static! {
     static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
 
     /// If this regex matches, the tested line is probably a markdown link.
-    static ref LOOKS_LIKE_A_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+").unwrap();
+    static ref MARKDOWN_LINK_START: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+").unwrap();
 
     /// Will search for a doc comment link and be used to check if the two
     /// elements are the same, indicating a local path.
@@ -175,7 +175,7 @@ impl Context {
         // Detect as soon as possible when a line is not a link and so should
         // not be transformed.
         if self.end_type_block.is_empty()
-            && (HTTP_LINK.is_match(&line) || !LOOKS_LIKE_A_LINK.is_match(&line))
+            && (HTTP_LINK.is_match(&line) || !MARKDOWN_LINK_START.is_match(&line))
         {
             return Action::Unchanged { line };
         }

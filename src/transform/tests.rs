@@ -1,7 +1,6 @@
 // TODO:
 //
 // - transform_file
-// - LOOKS_LIKE_A_LINK
 use super::*;
 
 impl PartialEq<str> for Action {
@@ -89,6 +88,48 @@ mod regexes {
 
         let string = "[name 1]: https://not-An€actual-link\n";
         assert!(HTTP_LINK.is_match(string));
+    }
+
+    #[test]
+    fn markdown_link_start() {
+        let string = "   //! [`name 1`]:  http://\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "/// [name 1]: https://\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "//! [name 1]:   http://actual-link.com\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "/// [name 1]: https://actual-link.com\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "[`name 1`]:  http://\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "[name 1]: https://\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "[name 1]:   http://actual-link.com\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "[name 1]: https://actual-link.com\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "//! [name 1]:   http://not-An€actual-link\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "   //! [`name 1`]: struct.String.html\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "/// [name 1]: String\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "//! [name 1]:   ./struct.Type.html\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
+
+        let string = "/// [name 1]: ./../../mod1/mod2/a.b.c#section\n";
+        assert!(MARKDOWN_LINK_START.is_match(string));
     }
 
     #[test]
