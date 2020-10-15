@@ -26,7 +26,7 @@ crates) was the following, the path depending on the current and target files:
 
 It is now possible to write them with Rust paths, depending on the path of the
 targeted item and what's in scope (which means items like `String` which are in
-the prelude are just a ```[`String`]``` away). Those links are clearer for both
+the prelude are just a `[String]` away). Those links are clearer for both
 the person writing them in the first place and subsequent readers reviewing them.
 They are also easier to reason about since file hierachy does not affect them.
 
@@ -57,6 +57,8 @@ $ cargo intraconv path/to/std/file.rs -a # Applying the changes
 
 $ cargo intraconv path/to/my/file.rs -d # Disambiguate links by prefixing them
                                         # with their rustdoc group ('type@', ...)
+
+$ cargo intraconv path/to/my/file.rs -q # Do not display changes, only errors
 ```
 
 It is possible to give multiple paths to files. Note that directories will not
