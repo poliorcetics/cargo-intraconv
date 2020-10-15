@@ -46,6 +46,10 @@ pub struct Args {
     #[argh(switch, short = 'd')]
     disambiguate: bool,
 
+    /// prints the crate version and exit.
+    #[argh(switch)]
+    version: bool,
+
     /// files to search links in.
     #[argh(positional)]
     paths: Vec<PathBuf>,
@@ -54,6 +58,11 @@ pub struct Args {
 /// Takes an `Args` instance to transform the paths it contains accordingly
 /// with its stored parameters.
 pub fn run(args: Args) {
+    if args.version {
+        println!("cargo-intraconv {}", std::env!("CARGO_PKG_VERSION"));
+        return;
+    }
+
     if args.paths.is_empty() {
         eprintln!("No paths were passed as arguments.");
         eprintln!("usage: cargo-intraconv [<paths...>] [-c <crate>] [-a] [-d]");
