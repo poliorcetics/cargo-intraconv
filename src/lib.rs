@@ -13,8 +13,7 @@ use std::io::Write as _;
 use std::path::PathBuf;
 use std::process;
 
-/// Converter from path-based links to intra-doc links for the `rust-lang/rust`
-/// project.
+/// Converter from path-based links to intra-doc links for Rust crates.
 ///
 /// This is not perfect and the modified files should still be reviewed after
 /// running it.
@@ -24,8 +23,18 @@ use std::process;
 ///
 /// If you are modifying `core` or `alloc` instead of `std`, you can pass the
 /// `-c core` (`--crate core`) to mark the change in the root crate.
+///
+/// By default the crate will output the changes it will do (or did when `-a`
+/// is passed). If this is not what you want, use the `-q` (`--quiet`) flag
+/// to only show errors.
+///
+/// When `-q` is not given, only files with changes will be displayed.
 #[derive(FromArgs, Debug)]
 pub struct Args {
+    /// prints the crate version and exit.
+    #[argh(switch)]
+    version: bool,
+
     /// root crate (examples: `std`, `core`, `my_crate`, ...).
     #[argh(
         option,
@@ -46,9 +55,9 @@ pub struct Args {
     #[argh(switch, short = 'd')]
     disambiguate: bool,
 
-    /// prints the crate version and exit.
-    #[argh(switch)]
-    version: bool,
+    /// do not display changes, only errors when they happen.
+    #[argh(switch, short = 'q')]
+    quiet: bool,
 
     /// files to search links in.
     #[argh(positional)]
@@ -65,9 +74,11 @@ pub fn run(args: Args) {
 
     if args.paths.is_empty() {
         eprintln!("No paths were passed as arguments.");
-        eprintln!("usage: cargo-intraconv [<paths...>] [-c <crate>] [-a] [-d]");
+        eprintln!("Usage: target/debug/cargo-intraconv [<paths...>] [--version] [-c <crate>] [-a] [-d] [-q]");
         process::exit(1);
     }
+
+    let display_changes = !args.quiet;
 
     let mut ctx = Context::new(args.krate, args.disambiguate);
     for path in args.paths {
@@ -77,9 +88,6 @@ pub fn run(args: Args) {
 
         // First display the path of the file that is about to be opened and tested.
         let path_display = path.display().to_string();
-        println!("{}", &path_display);
-        // TODO: Not always perfect because of unicode, fix this.
-        println!("{}\n", "=".repeat(path_display.len()));
 
         // Then open the file, reporting if it fails.
         let file = match File::open(&path) {
@@ -105,9 +113,16 @@ pub fn run(args: Args) {
             String::new()
         };
 
+        // Only display the filename when -q is not set and there are changes.
+        if display_changes && actions.iter().any(|a| !a.is_unchanged()) {
+            println!("{}", &path_display);
+            // TODO: Not always perfect because of unicode, fix this.
+            println!("{}\n", "=".repeat(path_display.len()));
+        }
+
         // Display the changes that can be made.
         for l in actions {
-            if !l.is_unchanged() {
+            if !l.is_unchanged() && display_changes {
                 println!("{}\n", l);
             }
             if args.apply {
