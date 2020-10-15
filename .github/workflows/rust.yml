@@ -1,22 +1,31 @@
-name: Rust
-
+name: ci
 on:
-    push:
-        branches: [ master ]
-    pull_request:
-        branches: [ master ]
-
+  pull_request:
+  push:
+    branches:
+    - master
 env:
-    CARGO_TERM_COLOR: always
-
+  CARGO_TERM_COLOR: always
 jobs:
-    build:
+  test:
+    name: test
+    env:
+      # Emit backtraces on panics.
+      RUST_BACKTRACE: 1
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Run Tests
+      run: cargo test --verbose
 
-        runs-on: ubuntu-latest
-
-        steps:
-            - uses: actions/checkout@v2
-            - name: Build
-              run: cargo build --verbose
-            - name: Run tests
-              run: cargo test --verbose
+  rustfmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Check formatting
+      run: cargo fmt --all -- --check
