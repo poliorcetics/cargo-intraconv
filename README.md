@@ -1,3 +1,7 @@
+[![CI](https://github.com/poliorcetics/cargo-intraconv/workflows/ci/badge.svg)](https://github.com/poliorcetics/cargo-intraconv/actions)
+![crates.io](https://img.shields.io/crates/v/cargo-intraconv)
+![crates.io](https://img.shields.io/crates/l/cargo-intraconv)
+
 # Cargo intraconv
 
 `cargo-intraconv` is a simple helper which will transform Markdown links to
