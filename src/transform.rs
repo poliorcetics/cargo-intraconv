@@ -38,6 +38,37 @@ const ITEM_TYPES: &[&str] = &[
 /// `usize` primitive.
 const ITEM_START_MARKERS: &[&str] = &["value", "type", "macro", "prim", "mod"];
 
+/// Regexes that detect *favored* links: they are links which should be
+/// transformed into intra-doc links when they match and the relevant
+/// option is `true`.
+mod fav_links {
+    use super::{lazy_static, Regex, ITEM_TYPES};
+
+    lazy_static! {
+        /// Line that is a markdown link to a https://docs.rs item.
+        pub static ref DOCS_RS: Regex = Regex::new(&[
+            r"^(?P<link_name>\s*(?://[!/] )?\[.+?\]:\s+)",
+            r"https?://docs.rs/(?:[\w\d\._-]+/)(?:.+?/)",
+            r"(?P<rest>",
+            // Detect crate name + modules
+            r"(?:(?:[A-Za-z0-9_]+/)+)?",
+            r"(?:",
+            // Detect item
+            &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
+            r"(?:.*)\.html",
+            &format!(
+                r"(?:#(?:{})\.(?:\S*))?",
+                ITEM_TYPES.join("|"),
+            ),
+            r"|",
+            // Detect module
+            r"index\.html",
+            r"(?:#[a-zA-Z0-9_\-\.]+)?",
+            ")\n)$",
+        ].join("")).unwrap();
+    }
+}
+
 lazy_static! {
     /// Line that is a markdown link to a Rust item.
     ///
@@ -45,10 +76,10 @@ lazy_static! {
     /// avoid missing valid links. It is better not to break an existing
     /// and working link than to try and fail when replacing it or worse,
     /// transforming it but making it point to something else silently.
-    static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+https?://.*\n$").unwrap();
+    static ref HTTP_LINK: Regex = Regex::new(r"^\s*(?://[!/] )?\[.+?\]:\s+https?://.*\n$").unwrap();
 
     /// If this regex matches, the tested line is probably a markdown link.
-    static ref MARKDOWN_LINK_START: Regex = Regex::new(r"^\s*(?://[!/] )?\[.*?\]:\s+").unwrap();
+    static ref MARKDOWN_LINK_START: Regex = Regex::new(r"^\s*(?://[!/] )?\[.+?\]:\s+").unwrap();
 
     /// Will search for a doc comment link and be used to check if the two
     /// elements are the same, indicating a local path.
@@ -97,6 +128,11 @@ pub struct Context {
     /// ('type@', ...). Ending disambiguators like '()' and '!' are always
     /// added, regardless of this option.
     disambiguate: bool,
+    /// If `true` the regexes in the `fav_links` module will be checked for
+    /// and their transformation applied before HTTP link are ignored.
+    ///
+    /// See also the `transform_favored_link` function.
+    apply_favored: bool,
     /// Current line number.
     pos: usize,
     /// Name of the type that is `Self` for the current block.
@@ -125,10 +161,11 @@ impl Context {
     /// NOTE: the `krate` parameter must contain a valid Rust identifier for a
     /// crate name (basically the regex `[\w_]+`) else the links that use it
     /// will be broken by the conversion.
-    pub fn new(krate: String, disambiguate: bool) -> Self {
+    pub fn new(krate: String, disambiguate: bool, apply_favored: bool) -> Self {
         Self {
             krate,
             disambiguate,
+            apply_favored,
             pos: 0,
             curr_type_block: None,
             end_type_block: String::new(),
@@ -176,6 +213,12 @@ impl Context {
                 self.type_block_line = ln;
             }
         }
+
+        let line = if self.apply_favored {
+            transform_favored_link(line)
+        } else {
+            line
+        };
 
         // Detect as soon as possible when a line is not a link and so should
         // not be transformed.
@@ -418,6 +461,23 @@ fn transform_local(line: String) -> String {
         if path.as_str() == link.as_str() {
             return "".into();
         }
+    }
+
+    line
+}
+
+/// Try to transform an http(s) link to a form suitable for intra-doc link
+/// processing.
+///
+/// Should be called before http(s) links are ignored else it will never do
+/// anything.
+fn transform_favored_link(line: String) -> String {
+    if let Some(captures) = fav_links::DOCS_RS.captures(&line) {
+        let link_name = captures.name("link_name").unwrap().as_str();
+        let rest = captures.name("rest").unwrap().as_str();
+        // `link_name` and `rest` respectively contain the necessary spacing
+        // and line ending characters.
+        return format!("{ln}{r}", ln = link_name, r = rest);
     }
 
     line
