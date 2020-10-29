@@ -58,7 +58,8 @@ mod regexes {
             let string = "/// [name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/struct.Test.html\n";
             assert!(HTTP_LINK.is_match(string));
 
-            let string = "/// [name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
+            let string =
+                "/// [name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
             assert!(HTTP_LINK.is_match(string));
 
             let string = "[`name 1`]:  https://docs.rs/name-1/293-fdsf/name_1/index.html\n";
@@ -67,7 +68,8 @@ mod regexes {
             let string = "[name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/struct.Test.html\n";
             assert!(HTTP_LINK.is_match(string));
 
-            let string = "[name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
+            let string =
+                "[name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
             assert!(HTTP_LINK.is_match(string));
         }
     }
@@ -349,7 +351,7 @@ fn new() {
     assert_ne!(Context::new("name".into(), true, true), ctx);
     assert_ne!(Context::new("name".into(), true, false), ctx);
     assert_ne!(Context::new("name".into(), false, false), ctx);
-    
+
     assert_ne!(Context::new("not_name".into(), true, true), ctx);
     assert_ne!(Context::new("not_name".into(), true, false), ctx);
     assert_ne!(Context::new("not_name".into(), false, true), ctx);
@@ -1804,7 +1806,7 @@ mod transform_anchor {
     #[test]
     fn matching_anchors() {
         let none_ctx = Context::new("my_crate_none".into(), true, false);
-        let mut some_ctx = Context::new("my_crate_some".into(), true, false); 
+        let mut some_ctx = Context::new("my_crate_some".into(), true, false);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1998,7 +2000,7 @@ mod transform_line {
     #[test]
     fn matching_lines_anchor() {
         let mut none_ctx = Context::new("my_crate_none".into(), true, false);
-        let mut some_ctx = Context::new("my_crate_some".into(), true, false); 
+        let mut some_ctx = Context::new("my_crate_some".into(), true, false);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();

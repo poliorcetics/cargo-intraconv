@@ -1,6 +1,6 @@
 [package]
 name = "cargo-intraconv"
-version = "1.0.1"
+version = "1.1.0"
 authors = ["Alexis Bourget <alexis.bourget@gmail.com>"]
 edition = "2018"
 description = "A simple helper to transform Markdown links to intra-doc links in Rust projects when appropriate."
@@ -10,6 +10,7 @@ homepage = "https://github.com/poliorcetics/cargo-intraconv"
 repository = "https://github.com/poliorcetics/cargo-intraconv"
 readme = "README.md"
 keywords = ["intra-doc-links", "documentation"]
+# See https://crates.io/category_slugs.
 categories = ["command-line-utilities", "development-tools", "development-tools::cargo-plugins"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
