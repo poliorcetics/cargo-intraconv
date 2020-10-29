@@ -62,6 +62,9 @@ $ cargo intraconv path/to/std/file.rs -a # Applying the changes
 $ cargo intraconv path/to/my/file.rs -d # Disambiguate links by prefixing them
                                         # with their rustdoc group ('type@', ...)
 
+$ cargo intravonc path/to/my/file.rs -f # Do not transform favored links to
+                                        # intra-doc links (see below for more)
+
 $ cargo intraconv path/to/my/file.rs -q # Do not display changes, only errors
 ```
 
@@ -70,6 +73,12 @@ work. Giving no paths will produce an error.
 
 > Note: `intraconv` will accept any file, no just `.rs` ones: you can use it
 > on markdown files that are included as docs in Rust files for example.
+
+### Favored links
+
+By default the crate will transform favored `http(s)://` links to intra-doc
+links (like those from [`docs.rs`](https://docs.rs)). To disable this behaviour
+use the `-f` (`--no-favored`) flag.
 
 ## Known issues
 
