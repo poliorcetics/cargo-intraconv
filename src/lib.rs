@@ -28,6 +28,10 @@ use std::process;
 /// is passed). If this is not what you want, use the `-q` (`--quiet`) flag
 /// to only show errors.
 ///
+/// By default the crate will transform favored http(s):// links to intra-doc
+/// links (like those from `docs.rs`). To disable this behaviour use the `-f`
+/// (`--no-favored`) flag.
+///
 /// When `-q` is not given, only files with changes will be displayed.
 #[derive(FromArgs, Debug)]
 pub struct Args {
@@ -55,6 +59,12 @@ pub struct Args {
     #[argh(switch, short = 'd')]
     disambiguate: bool,
 
+    /// disable transformation of favored links.
+    /// Favored links example: https://docs.rs/name/latest/name/span/index.html
+    /// will be transformed to `name::span`.
+    #[argh(switch, long = "no-favored", short = 'f')]
+    no_favored: bool,
+
     /// do not display changes, only errors when they happen.
     #[argh(switch, short = 'q')]
     quiet: bool,
@@ -74,13 +84,13 @@ pub fn run(args: Args) {
 
     if args.paths.is_empty() {
         eprintln!("No paths were passed as arguments.");
-        eprintln!("Usage: target/debug/cargo-intraconv [<paths...>] [--version] [-c <crate>] [-a] [-d] [-q]");
+        eprintln!("Usage: target/debug/cargo-intraconv [<paths...>] [--version] [-c <crate>] [-a] [-d] [-f] [-q]");
         process::exit(1);
     }
 
     let display_changes = !args.quiet;
 
-    let mut ctx = Context::new(args.krate, args.disambiguate);
+    let mut ctx = Context::new(args.krate, args.disambiguate, !args.no_favored);
     for path in args.paths {
         if path.as_os_str() == "intraconv" && !path.exists() {
             continue;
