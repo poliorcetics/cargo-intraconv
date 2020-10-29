@@ -47,6 +47,31 @@ impl Action {
 mod regexes {
     use super::*;
 
+    mod fav_links_tests {
+        use super::*;
+
+        #[test]
+        fn docs_rs() {
+            let string = "   //! [`name 1`]:  https://docs.rs/name-1/293-fdsf/name_1/index.html\n";
+            assert!(HTTP_LINK.is_match(string));
+
+            let string = "/// [name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/struct.Test.html\n";
+            assert!(HTTP_LINK.is_match(string));
+
+            let string = "/// [name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
+            assert!(HTTP_LINK.is_match(string));
+
+            let string = "[`name 1`]:  https://docs.rs/name-1/293-fdsf/name_1/index.html\n";
+            assert!(HTTP_LINK.is_match(string));
+
+            let string = "[name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/struct.Test.html\n";
+            assert!(HTTP_LINK.is_match(string));
+
+            let string = "[name 1]: https://docs.rs/name_2-3/1.2.3/name_2_3/module/struct.Test.html\n";
+            assert!(HTTP_LINK.is_match(string));
+        }
+    }
+
     #[test]
     fn http_link() {
         let string = "   //! [`name 1`]:  http://\n";
@@ -311,6 +336,7 @@ fn new() {
     let ctx = Context {
         krate: "name".into(),
         disambiguate: false,
+        apply_favored: true,
         pos: 0,
         curr_type_block: None,
         end_type_block: String::new(),
@@ -318,10 +344,16 @@ fn new() {
         type_blocks: Vec::new(),
     };
 
-    assert_eq!(Context::new("name".into(), false), ctx);
-    assert_ne!(Context::new("name".into(), true), ctx);
-    assert_ne!(Context::new("not_name".into(), false), ctx);
-    assert_ne!(Context::new("not_name".into(), true), ctx);
+    assert_eq!(Context::new("name".into(), false, true), ctx);
+
+    assert_ne!(Context::new("name".into(), true, true), ctx);
+    assert_ne!(Context::new("name".into(), true, false), ctx);
+    assert_ne!(Context::new("name".into(), false, false), ctx);
+    
+    assert_ne!(Context::new("not_name".into(), true, true), ctx);
+    assert_ne!(Context::new("not_name".into(), true, false), ctx);
+    assert_ne!(Context::new("not_name".into(), false, true), ctx);
+    assert_ne!(Context::new("not_name".into(), false, false), ctx);
 }
 
 mod find_type_blocks {
@@ -696,12 +728,12 @@ mod transform_item {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into(), true);
+        let ctx = Context::new("std".into(), true, false);
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
         }
 
-        let ctx = Context::new("std".into(), false);
+        let ctx = Context::new("std".into(), false, false);
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
         }
@@ -709,7 +741,7 @@ mod transform_item {
 
     #[test]
     fn matching_items() {
-        let ctx = Context::new("my_crate".into(), true);
+        let ctx = Context::new("my_crate".into(), true, false);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -966,7 +998,7 @@ mod transform_item {
 
     #[test]
     fn matching_items_no_disambiguate() {
-        let ctx = Context::new("my_crate".into(), false);
+        let ctx = Context::new("my_crate".into(), false, false);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1224,12 +1256,12 @@ mod transform_module {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into(), true);
+        let ctx = Context::new("std".into(), true, false);
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
 
-        let ctx = Context::new("std".into(), false);
+        let ctx = Context::new("std".into(), false, false);
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
@@ -1237,7 +1269,7 @@ mod transform_module {
 
     #[test]
     fn matching_modules() {
-        let ctx = Context::new("my_crate".into(), true);
+        let ctx = Context::new("my_crate".into(), true, false);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1441,7 +1473,7 @@ mod transform_module {
 
     #[test]
     fn matching_modules_no_disambiguate() {
-        let ctx = Context::new("my_crate".into(), false);
+        let ctx = Context::new("my_crate".into(), false, false);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1758,12 +1790,12 @@ mod transform_anchor {
             "/// [Link]: super::Link\n",
         ];
 
-        let ctx = Context::new("my_crate".into(), true);
+        let ctx = Context::new("my_crate".into(), true, false);
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
         }
 
-        let ctx = Context::new("my_crate".into(), false);
+        let ctx = Context::new("my_crate".into(), false, false);
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
         }
@@ -1771,8 +1803,8 @@ mod transform_anchor {
 
     #[test]
     fn matching_anchors() {
-        let none_ctx = Context::new("my_crate_none".into(), true);
-        let mut some_ctx = Context::new("my_crate_some".into(), true);
+        let none_ctx = Context::new("my_crate_none".into(), true, false);
+        let mut some_ctx = Context::new("my_crate_some".into(), true, false); 
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1824,8 +1856,8 @@ mod transform_anchor {
 
     #[test]
     fn matching_anchors_no_disambiguate() {
-        let none_ctx = Context::new("my_crate_none".into(), false);
-        let mut some_ctx = Context::new("my_crate_some".into(), false);
+        let none_ctx = Context::new("my_crate_none".into(), false, false);
+        let mut some_ctx = Context::new("my_crate_some".into(), false, false);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1894,12 +1926,12 @@ mod transform_line {
             "/// [Link]: super::Link\n",
         ];
 
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
         }
 
-        let mut ctx = Context::new("my_crate".into(), false);
+        let mut ctx = Context::new("my_crate".into(), false, true);
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
         }
@@ -1907,7 +1939,7 @@ mod transform_line {
 
     #[test]
     fn type_block_none_to_some() {
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
 
@@ -1919,7 +1951,7 @@ mod transform_line {
         assert!(ctx.type_blocks.is_empty());
 
         // No disambiguate
-        let mut ctx = Context::new("my_crate".into(), false);
+        let mut ctx = Context::new("my_crate".into(), false, true);
 
         ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
 
@@ -1933,7 +1965,7 @@ mod transform_line {
 
     #[test]
     fn type_block_some_to_none() {
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         ctx.pos = 2;
 
@@ -1948,7 +1980,7 @@ mod transform_line {
         assert_eq!(usize::MAX, ctx.type_block_line);
 
         // No disambiguate
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         ctx.pos = 2;
 
@@ -1965,8 +1997,8 @@ mod transform_line {
 
     #[test]
     fn matching_lines_anchor() {
-        let mut none_ctx = Context::new("my_crate_none".into(), true);
-        let mut some_ctx = Context::new("my_crate_some".into(), true);
+        let mut none_ctx = Context::new("my_crate_none".into(), true, false);
+        let mut some_ctx = Context::new("my_crate_some".into(), true, false); 
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -2018,8 +2050,8 @@ mod transform_line {
 
     #[test]
     fn matching_lines_anchor_no_disambiguate() {
-        let mut none_ctx = Context::new("my_crate_none".into(), false);
-        let mut some_ctx = Context::new("my_crate_some".into(), false);
+        let mut none_ctx = Context::new("my_crate_none".into(), false, true);
+        let mut some_ctx = Context::new("my_crate_some".into(), false, true);
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -2069,7 +2101,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_local_links() {
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2141,7 +2173,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_local_links_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false);
+        let mut ctx = Context::new("my_crate".into(), false, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2209,7 +2241,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_modules() {
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2413,7 +2445,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_modules_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false);
+        let mut ctx = Context::new("my_crate".into(), false, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2613,7 +2645,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_items() {
-        let mut ctx = Context::new("my_crate".into(), true);
+        let mut ctx = Context::new("my_crate".into(), true, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2841,7 +2873,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_items_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false);
+        let mut ctx = Context::new("my_crate".into(), false, true);
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -3051,5 +3083,132 @@ mod transform_line {
                 }
             }
         }
+    }
+
+    #[test]
+    fn matching_favored_links_no_favored() {
+        let mut ctx = Context::new("my_krate".into(), false, false);
+
+        let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "    /// [`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/index.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+
+        let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        assert_eq!(line, ctx.transform_line(line.into()));
+    }
+
+    #[test]
+    fn matching_favored_links_favored() {
+        let mut ctx = Context::new("my_krate".into(), false, true);
+
+        let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
+        let exp = "/// [link]: name\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        let exp = "//! [link]: name::mod\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        let exp = "//! [link]: name::mod#section\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "    /// [`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        let exp = "    /// [`link`]: name::mod::Type\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/index.html\n";
+        let exp = "[link]: name\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        let exp = "[link]: name::mod\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        let exp = "[link]: name::mod#section\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        let exp = "[`link`]: name::mod::Type\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+    }
+}
+
+mod transform_favored_links {
+    use super::*;
+
+    #[test]
+    fn non_favored() {
+        let non_favored_links = [
+            "let a = b;\n",
+            "if a == b { let c = Type { toto: titi }; }\n",
+            "/// struct X;\n",
+            "//! struct X;\n",
+            "// struct X;\n",
+            "  // trait T {}\n",
+            "\n",
+            "'\n'.into()\n",
+            "struct A(());\n",
+            "/// [link]: https://toto.com\n",
+            "/// [non local link]: Link\n",
+            "/// [Link]: super::Link\n",
+        ];
+
+        for &line in &non_favored_links {
+            assert_eq!(line, transform_favored_link(line.into()));
+        }
+    }
+
+    #[test]
+    fn matching_favored_links() {
+        let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
+        let exp = "/// [link]: name/index.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        let exp = "//! [link]: name/mod/index.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        let exp = "//! [link]: name/mod/index.html#section\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "    /// [`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        let exp = "    /// [`link`]: name/mod/struct.Type.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/index.html\n";
+        let exp = "[link]: name/index.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html\n";
+        let exp = "[link]: name/mod/index.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        let exp = "[link]: name/mod/index.html#section\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
+        let exp = "[`link`]: name/mod/struct.Type.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
     }
 }
