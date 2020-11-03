@@ -3207,31 +3207,31 @@ mod transform_favored_links {
         let exp = "    /// [`link`]: name/mod/struct.Type.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
-        let line = "[link]: https://docs.rs/name/latest/name/index.html\n";
-        let exp = "[link]: name/index.html\n";
+        let line = "[link]: https://docs.rs/name_A/latest/name_A/index.html\n";
+        let exp = "[link]: name_A/index.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
-        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html\n";
-        let exp = "[link]: name/mod/index.html\n";
+        let line = "[link]: https://docs.rs/name-A/latest/name_A/mod/index.html\n";
+        let exp = "[link]: name_A/mod/index.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
-        let line = "[link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
-        let exp = "[link]: name/mod/index.html#section\n";
+        let line = "[link]: https://docs.rs/name_1/latest/name_1/mod/index.html#section\n";
+        let exp = "[link]: name_1/mod/index.html#section\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
-        let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
-        let exp = "[`link`]: name/mod/struct.Type.html\n";
+        let line = "[`link`]: https://docs.rs/name-1/latest/name_1/mod/struct.Type.html\n";
+        let exp = "[`link`]: name_1/mod/struct.Type.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
     }
 
     #[test]
     fn matching_favored_links_docs_rs_short() {
-        let line = "/// [link]: https://docs.rs/name\n";
-        let exp = "/// [link]: name\n";
+        let line = "/// [link]: https://docs.rs/name_A\n";
+        let exp = "/// [link]: name_A\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
-        let line = "    //! [link]: https://docs.rs/name/\n";
-        let exp = "    //! [link]: name\n";
+        let line = "    //! [link]: https://docs.rs/name-A/\n";
+        let exp = "    //! [link]: name_A\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 
         let line = "    [link]: https://docs.rs/name-1\n";
