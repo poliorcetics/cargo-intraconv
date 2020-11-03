@@ -86,9 +86,9 @@ lazy_static! {
     static ref LOCAL_PATH: Regex = Regex::new(&[
         r"^\s*(?://[!/] )?",
         r"\[`?(?P<elem>.*?)`?\]: ",
-        &format!(r"(?:(?:{})@)?", ITEM_START_MARKERS.join("|")),
+        &format!(r"(?:(?P<dis_start>{})@)?", ITEM_START_MARKERS.join("|")),
         r"(?P<elem2>.*?)",
-        r"(?:!|\(\))?\n$",
+        r"(?P<dis_end>!|\(\))?\n$",
     ].join("")).unwrap();
 
     /// A partial link that needs a type to be complete.
@@ -454,8 +454,17 @@ impl Context {
 /// Try to transform a local link to an empty string. If it is not, the
 /// line is returned unmodified. Should be called after all the other
 /// transformations to ensure no local link is missed.
+///
+/// Links with disambiguators in them will be returned without any changes
+/// because the disambiguator could be the only thing helping rustdoc correctly
+/// determine the item true link.
 fn transform_local(line: String) -> String {
     if let Some(captures) = LOCAL_PATH.captures(&line) {
+        // Don't remove links that have disambiguators.
+        if captures.name("dis_start").is_some() || captures.name("dis_end").is_some() {
+            return line;
+        }
+
         let link = captures.name("elem").unwrap();
         let path = captures.name("elem2").unwrap();
         if path.as_str() == link.as_str() {

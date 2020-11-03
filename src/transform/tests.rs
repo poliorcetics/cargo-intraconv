@@ -1704,22 +1704,20 @@ mod transform_local {
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
 
-        let exp = "";
-
         for item in ITEM_TYPES {
             let (start, end) = item_type_markers(item);
 
             for i in &indentations {
                 for b in &bangs {
                     let line = format!("{ind}//{bang} [link]: link\n", ind = i, bang = b);
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!("", transform_local(line));
 
                     let line = format!(
                         "{ind}//{bang} [super::Type]: super::Type\n",
                         ind = i,
                         bang = b
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!("", transform_local(line));
 
                     let line = format!(
                         "{ind}//{bang} [link]: {s}link{e}\n",
@@ -1728,7 +1726,10 @@ mod transform_local {
                         s = start,
                         e = end
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!(
+                        if start != "" || end != "" { &line } else { "" },
+                        transform_local(line.clone())
+                    );
 
                     let line = format!(
                         "{ind}//{bang} [super::Type]: {s}super::Type{e}\n",
@@ -1737,17 +1738,20 @@ mod transform_local {
                         s = start,
                         e = end
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!(
+                        if start != "" || end != "" { &line } else { "" },
+                        transform_local(line.clone())
+                    );
 
                     let line = format!("{ind}//{bang} [`link`]: link\n", ind = i, bang = b);
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!("", transform_local(line));
 
                     let line = format!(
                         "{ind}//{bang} [`super::Type`]: super::Type\n",
                         ind = i,
                         bang = b
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!("", transform_local(line));
 
                     let line = format!(
                         "{ind}//{bang} [`link`]: {s}link{e}\n",
@@ -1756,7 +1760,10 @@ mod transform_local {
                         s = start,
                         e = end
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!(
+                        if start != "" || end != "" { &line } else { "" },
+                        transform_local(line.clone())
+                    );
 
                     let line = format!(
                         "{ind}//{bang} [`super::Type`]: {s}super::Type{e}\n",
@@ -1765,7 +1772,10 @@ mod transform_local {
                         s = start,
                         e = end
                     );
-                    assert_eq!(exp, transform_local(line));
+                    assert_eq!(
+                        if start != "" || end != "" { &line } else { "" },
+                        transform_local(line.clone())
+                    );
                 }
             }
         }
@@ -2130,7 +2140,7 @@ mod transform_line {
                         s = start,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!(
                         "{ind}//{bang} [super::Type]: {s}super::Type{e}\n",
@@ -2139,7 +2149,7 @@ mod transform_line {
                         s = start,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!("{ind}//{bang} [`link`]: link\n", ind = i, bang = b);
                     assert!(ctx.transform_line(line).is_deleted());
@@ -2158,7 +2168,7 @@ mod transform_line {
                         s = start,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!(
                         "{ind}//{bang} [`super::Type`]: {s}super::Type{e}\n",
@@ -2167,7 +2177,7 @@ mod transform_line {
                         s = start,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
                 }
             }
         }
@@ -2201,7 +2211,7 @@ mod transform_line {
                         bang = b,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!(
                         "{ind}//{bang} [super::Type]: super::Type{e}\n",
@@ -2209,7 +2219,7 @@ mod transform_line {
                         bang = b,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!("{ind}//{bang} [`link`]: link\n", ind = i, bang = b);
                     assert!(ctx.transform_line(line).is_deleted());
@@ -2227,7 +2237,7 @@ mod transform_line {
                         bang = b,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
 
                     let line = format!(
                         "{ind}//{bang} [`super::Type`]: super::Type{e}\n",
@@ -2235,7 +2245,7 @@ mod transform_line {
                         bang = b,
                         e = end
                     );
-                    assert!(ctx.transform_line(line).is_deleted());
+                    assert_eq!(line, ctx.transform_line(line.clone()));
                 }
             }
         }
