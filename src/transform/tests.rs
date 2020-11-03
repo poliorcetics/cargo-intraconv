@@ -3190,7 +3190,7 @@ mod transform_favored_links {
     }
 
     #[test]
-    fn matching_favored_links() {
+    fn matching_favored_links_docs_rs_long() {
         let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
         let exp = "/// [link]: name/index.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
@@ -3221,6 +3221,25 @@ mod transform_favored_links {
 
         let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
         let exp = "[`link`]: name/mod/struct.Type.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+    }
+
+    #[test]
+    fn matching_favored_links_docs_rs_short() {
+        let line = "/// [link]: https://docs.rs/name\n";
+        let exp = "/// [link]: name\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "    //! [link]: https://docs.rs/name/\n";
+        let exp = "    //! [link]: name\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "    [link]: https://docs.rs/name-1\n";
+        let exp = "    [link]: name_1\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "[link]: https://docs.rs/name_1\n";
+        let exp = "[link]: name_1\n";
         assert_eq!(exp, transform_favored_link(line.into()));
     }
 }

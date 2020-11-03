@@ -45,10 +45,10 @@ mod fav_links {
     use super::{lazy_static, Regex, ITEM_TYPES};
 
     lazy_static! {
-        /// Line that is a markdown link to a https://docs.rs item.
-        pub static ref DOCS_RS: Regex = Regex::new(&[
+        /// Line that is a long markdown link to a https://docs.rs item.
+        pub static ref DOCS_RS_LONG: Regex = Regex::new(&[
             r"^(?P<link_name>\s*(?://[!/] )?\[.+?\]:\s+)",
-            r"https?://docs.rs/(?:[\w\d\._-]+/)(?:.+?/)",
+            r"https?://docs.rs/(?:[A-Za-z_][A-Za-z0-9_-]*/)(?:.+?/)",
             r"(?P<rest>",
             // Detect crate name + modules
             r"(?:(?:[A-Za-z0-9_]+/)+)?",
@@ -66,6 +66,14 @@ mod fav_links {
             r"(?:#[a-zA-Z0-9_\-\.]+)?",
             ")\n)$",
         ].join("")).unwrap();
+
+        /// Line that is a short markdown link to a https://docs.rs crate.
+        pub static ref DOCS_RS_SHORT: Regex = Regex::new(concat!(
+            r"^(?P<link_name>\s*(?://[!/] )?\[.+?\]:\s+)",
+            r"https?://docs.rs/",
+            r"(?P<krate>[A-Za-z_][A-Za-z0-9_-]*)",
+            r"/?\n$",
+        )).unwrap();
     }
 }
 
@@ -481,12 +489,17 @@ fn transform_local(line: String) -> String {
 /// Should be called before http(s) links are ignored else it will never do
 /// anything.
 fn transform_favored_link(line: String) -> String {
-    if let Some(captures) = fav_links::DOCS_RS.captures(&line) {
+    if let Some(captures) = fav_links::DOCS_RS_LONG.captures(&line) {
         let link_name = captures.name("link_name").unwrap().as_str();
         let rest = captures.name("rest").unwrap().as_str();
         // `link_name` and `rest` respectively contain the necessary spacing
         // and line ending characters.
         return format!("{ln}{r}", ln = link_name, r = rest);
+    } else if let Some(captures) = fav_links::DOCS_RS_SHORT.captures(&line) {
+        let link_name = captures.name("link_name").unwrap().as_str();
+        let krate = captures.name("krate").unwrap().as_str().replace("-", "_");
+        // `link_name` contains the necessary spacing.
+        return format!("{ln}{k}\n", ln = link_name, k = krate);
     }
 
     line
