@@ -1,3 +1,12 @@
+# Version 1.X.Y - ????-??-??
+
+- Added more favored links pattern for `docs.rs`: `https://docs.rs/crate-1`
+  will now be transformed to `crate_1` when used in a link.
+- Don't remove links that are local but use a disambiguator:
+  `/// [tracing]: mod@tracing` was previously removed but the `mod@` part could
+  be the only thing helping rustdoc find the correct link and so it is
+  necessary to keep the link.
+
 # Version 1.1.0 - 2020-10-29
 
 Git tag: `v1.1.0`.
