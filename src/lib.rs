@@ -4,14 +4,15 @@ use action::Action;
 mod transform;
 use transform::Context;
 
+mod file_finder;
+
 use argh::FromArgs;
 use regex::Regex;
 use std::fmt::Write;
 use std::fs::{File, OpenOptions};
 use std::io::BufReader;
 use std::io::Write as _;
-use std::path::PathBuf;
-use std::process;
+use std::path::{Path, PathBuf};
 
 /// Converter from path-based links to intra-doc links for Rust crates.
 ///
@@ -33,7 +34,7 @@ use std::process;
 /// (`--no-favored`) flag.
 ///
 /// When `-q` is not given, only files with changes will be displayed.
-#[derive(FromArgs, Debug)]
+#[derive(FromArgs, Debug, Clone)]
 pub struct Args {
     /// prints the crate version and exit.
     #[argh(switch)]
@@ -82,88 +83,150 @@ pub fn run(args: Args) {
         return;
     }
 
-    if args.paths.is_empty() {
-        eprintln!("No paths were passed as arguments.");
-        eprintln!("Usage: target/debug/cargo-intraconv [<paths...>] [--version] [-c <crate>] [-a] [-d] [-f] [-q]");
-        process::exit(1);
-    }
+    let mut true_args = args.clone();
+    true_args.paths = vec![];
 
-    let display_changes = !args.quiet;
+    let paths = if args.paths.is_empty() || args.paths == [Path::new("intraconv")] {
+        file_finder::determine_dir()
+    } else {
+        args.paths
+            .into_iter()
+            .map(|p| (p, true_args.krate.clone()))
+            .collect()
+    };
 
-    let mut ctx = Context::new(args.krate, args.disambiguate, !args.no_favored);
-    for path in args.paths {
-        if path.as_os_str() == "intraconv" && !path.exists() {
-            continue;
+    let start_dir = match ::std::env::current_dir() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Failed to get current directory: {}", e);
+            ::std::process::exit(1);
         }
+    };
 
-        // First display the path of the file that is about to be opened and tested.
-        let path_display = path.display().to_string();
+    let mut visited = ::std::collections::HashSet::new();
 
-        // Then open the file, reporting if it fails.
-        let file = match File::open(&path) {
-            Ok(file) => BufReader::new(file),
-            Err(err) => {
-                eprintln!("Failed to open file '{}' for read: {}", &path_display, err);
-                continue;
-            }
-        };
-
-        let actions = match ctx.transform_file(file) {
-            Ok(actions) => actions,
-            Err(err) => {
-                eprintln!("Failed to transform file '{}': {}", &path_display, err);
-                continue;
-            }
-        };
-
-        // Do not allocate when unecessary.
-        let mut updated_content = if args.apply {
-            String::with_capacity(64 * actions.len())
+    for (path, krate) in paths {
+        if visited.contains(&path) {
+            continue;
         } else {
-            String::new()
-        };
-
-        // Only display the filename when -q is not set and there are changes.
-        if display_changes && actions.iter().any(|a| !a.is_unchanged()) {
-            println!("{}", &path_display);
-            // TODO: Not always perfect because of unicode, fix this.
-            println!("{}\n", "=".repeat(path_display.len()));
+            visited.insert(path.clone());
         }
 
-        // Display the changes that can be made.
-        for l in actions {
-            if !l.is_unchanged() && display_changes {
-                println!("{}\n", l);
+        true_args.krate = krate;
+
+        if !path.is_dir() {
+            run_for_file(&path, &true_args);
+        } else {
+            match ::std::env::set_current_dir(&path) {
+                Ok(_) => (),
+                Err(e) => {
+                    eprintln!("Failed to set current dir to '{:?}': {}", path, e);
+                    ::std::process::exit(1);
+                }
             }
-            if args.apply {
-                write!(updated_content, "{}", l.as_new_line()).unwrap();
+
+            for file in glob::glob("**/*.rs").unwrap() {
+                match file {
+                    Ok(f) => run_for_file(&f, &true_args),
+                    Err(e) => {
+                        eprintln!("Failed to access a file in '{:?}': {}", &path, e);
+                        continue;
+                    }
+                }
+            }
+
+            match ::std::env::set_current_dir(&start_dir) {
+                Ok(_) => (),
+                Err(e) => {
+                    eprintln!("Failed to set current dir to '{:?}': {}", path, e);
+                    ::std::process::exit(1);
+                }
             }
         }
-
-        if !args.apply {
-            continue;
-        }
-
-        let mut file = match OpenOptions::new().write(true).truncate(true).open(path) {
-            Ok(file) => file,
-            Err(err) => {
-                eprintln!("Failed to open file '{}' for write: {}", &path_display, err);
-                continue;
-            }
-        };
-
-        match write!(file, "{}", updated_content) {
-            Ok(file) => file,
-            Err(err) => {
-                eprintln!("Failed to write to '{}': {}", &path_display, err);
-                continue;
-            }
-        };
     }
 }
 
-/// Check the given `krate` is exactly one of `std`, `core` or `alloc`.
-/// In any other case it will return an error message.
+fn run_for_file(path: &Path, args: &Args) {
+    if path.as_os_str() == "intraconv" && !path.exists() {
+        return;
+    }
+
+    let path = match path.canonicalize() {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("Failed to canonicalize path: {}", e);
+            return;
+        }
+    };
+
+    let display_changes = !args.quiet;
+    let mut ctx = Context::new(args.krate.clone(), args.disambiguate, !args.no_favored);
+
+    // First display the path of the file that is about to be opened and tested.
+    let path_display = path.display().to_string();
+
+    // Then open the file, reporting if it fails.
+    let file = match File::open(&path) {
+        Ok(file) => BufReader::new(file),
+        Err(err) => {
+            eprintln!("Failed to open file '{}' for read: {}", &path_display, err);
+            return;
+        }
+    };
+
+    let actions = match ctx.transform_file(file) {
+        Ok(actions) => actions,
+        Err(err) => {
+            eprintln!("Failed to transform file '{}': {}", &path_display, err);
+            return;
+        }
+    };
+
+    // Do not allocate when unecessary.
+    let mut updated_content = if args.apply {
+        String::with_capacity(64 * actions.len())
+    } else {
+        String::new()
+    };
+
+    // Only display the filename when -q is not set and there are changes.
+    if display_changes && actions.iter().any(|a| !a.is_unchanged()) {
+        println!("{}", &path_display);
+        // TODO: Not always perfect because of unicode, fix this.
+        println!("{}\n", "=".repeat(path_display.len()));
+    }
+
+    // Display the changes that can be made.
+    for l in actions {
+        if !l.is_unchanged() && display_changes {
+            println!("{}\n", l);
+        }
+        if args.apply {
+            write!(updated_content, "{}", l.as_new_line()).unwrap();
+        }
+    }
+
+    if !args.apply {
+        return;
+    }
+
+    let mut file = match OpenOptions::new().write(true).truncate(true).open(path) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to open file '{}' for write: {}", &path_display, err);
+            return;
+        }
+    };
+
+    match write!(file, "{}", updated_content) {
+        Ok(file) => file,
+        Err(err) => {
+            eprintln!("Failed to write to '{}': {}", &path_display, err);
+            return;
+        }
+    };
+}
+
 fn check_krate(krate: &str) -> Result<String, String> {
     let krate_regex = Regex::new(r"^[\w_]+$").unwrap();
     if krate_regex.is_match(krate) {
