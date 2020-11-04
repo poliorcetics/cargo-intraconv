@@ -1234,6 +1234,18 @@ mod transform_item {
                         end = end
                     );
                     assert_eq!(exp, ctx.transform_item(link));
+
+                    let link = format!(
+                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#usage\n",
+                        ind = id,
+                        bang = b,
+                    );
+                    let exp = format!(
+                        "{ind}//{bang} [`Item`]: crate::mod1::mod2::Item#usage\n",
+                        ind = id,
+                        bang = b,
+                    );
+                    assert_eq!(exp, ctx.transform_item(link));
                 }
             }
         }
@@ -3200,6 +3212,14 @@ mod transform_favored_links {
         assert_eq!(exp, transform_favored_link(line.into()));
 
         let line = "//! [link]: https://docs.rs/name/latest/name/mod/index.html#section\n";
+        let exp = "//! [link]: name/mod/index.html#section\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/#section\n";
+        let exp = "//! [link]: name/mod/index.html#section\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod#section\n";
         let exp = "//! [link]: name/mod/index.html#section\n";
         assert_eq!(exp, transform_favored_link(line.into()));
 

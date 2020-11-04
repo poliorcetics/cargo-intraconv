@@ -62,9 +62,10 @@ mod fav_links {
             ),
             r"|",
             // Detect module
-            r"index\.html",
+            r"(?:index\.html|/|(?P<final_mod>[A-Za-z0-9_]+/?)?)",
+            r")",
             r"(?:#[a-zA-Z0-9_\-\.]+)?",
-            ")\n)$",
+            "\n)$",
         ].join("")).unwrap();
 
         /// Line that is a short markdown link to a https://docs.rs crate.
@@ -286,11 +287,15 @@ impl Context {
                 &format!(r"(?:(?P<crate>{})/)?", self.krate),
                 r"(?P<intermediates>(?:[A-Za-z0-9_]+/)+)?",
                 &format!(r"(?P<item_type>{})\.", ITEM_TYPES.join("|")),
-                r"(?P<elem>.*)\.html",
+                r"(?P<elem>[a-zA-Z0-9_]+)\.html",
+                r"(?:",
                 &format!(
-                    r"(?:#(?P<add_item_type>{})\.(?P<additional>\S*))?\n$",
+                    r"#(?P<add_item_type>{})\.(?P<additional>\S*)",
                     ITEM_TYPES.join("|")
                 ),
+                r"|",
+                r"#(?P<section>[a-zA-Z0-9\-_]+)",
+                r")?\n$",
             ]
             .join(""),
         )
@@ -302,10 +307,13 @@ impl Context {
             None => return line,
         };
 
+        // Getting a maximum of values as early as possible to keep them close
+        // to their related regex.
         let link_name = captures.name("link_name").unwrap().as_str();
         let elem = captures.name("elem").unwrap().as_str();
         let item_type = captures.name("item_type").unwrap().as_str();
         let add_item_type = captures.name("add_item_type").map(|x| x.as_str());
+        let section = captures.name("section").map(|x| x.as_str()).unwrap_or("");
 
         let mut new = String::with_capacity(64);
         new.push_str(link_name);
@@ -349,6 +357,10 @@ impl Context {
             new.push_str(additional);
         }
 
+        if !section.is_empty() {
+            new.push('#');
+            new.push_str(section);
+        }
         new.push_str(item_marker_end);
         // The regexes that will follow expect a `\n` at the end of the line.
         new.push('\n');
@@ -494,7 +506,13 @@ fn transform_favored_link(line: String) -> String {
         let rest = captures.name("rest").unwrap().as_str();
         // `link_name` and `rest` respectively contain the necessary spacing
         // and line ending characters.
-        return format!("{ln}{r}", ln = link_name, r = rest);
+        let res = format!("{ln}{r}", ln = link_name, r = rest).replace("/\n", "/index.html\n");
+
+        return if let Some(final_mod) = captures.name("final_mod").map(|x| x.as_str()) {
+            res.replace(final_mod, &format!("{}/index.html", final_mod))
+        } else {
+            res.replace("/#", "/index.html#")
+        };
     } else if let Some(captures) = fav_links::DOCS_RS_SHORT.captures(&line) {
         let link_name = captures.name("link_name").unwrap().as_str();
         let krate = captures.name("krate").unwrap().as_str().replace("-", "_");
