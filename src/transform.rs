@@ -75,6 +75,32 @@ mod fav_links {
             r"(?P<krate>[A-Za-z_][A-Za-z0-9_-]*)",
             r"/?\n$",
         )).unwrap();
+
+        /// Line that is a markdown link to a https://doc.rust-lang.org item.
+        pub static ref DOC_RUST_LANG_LONG: Regex =  Regex::new(&[
+            r"^(?P<link_name>\s*(?://[!/] )?\[.+?\]:\s+)",
+            r"https?://doc.rust-lang.org/",
+            r"(?:nightly|stable|beta|1\.\d+\.\d+)/",
+            // Detect crate name while ignoring nightly-rustc
+            r"(?:nightly-rustc/|(?P<crate>(?:std|alloc|core|test|proc_macro)/))",
+            r"(?P<rest>",
+            // Detect (when nightly-rustc) crate name + (always) modules
+            r"(?:(?:[A-Za-z0-9_]+/)+)?",
+            r"(?:",
+            // Detect item
+            &format!(r"(?:{})\.", ITEM_TYPES.join("|")),
+            r"(?:.*)\.html",
+            &format!(
+                r"(?:#(?:{})\.(?:\S*))?",
+                ITEM_TYPES.join("|"),
+            ),
+            r"|",
+            // Detect module
+            r"(?:index\.html|/|(?P<final_mod>[A-Za-z0-9_]+/?)?)",
+            r")",
+            r"(?:#[a-zA-Z0-9_\-\.]+)?",
+            "\n)$",
+        ].join("")).unwrap();
     }
 }
 
@@ -518,6 +544,20 @@ fn transform_favored_link(line: String) -> String {
         let krate = captures.name("krate").unwrap().as_str().replace("-", "_");
         // `link_name` contains the necessary spacing.
         return format!("{ln}{k}\n", ln = link_name, k = krate);
+    } else if let Some(captures) = fav_links::DOC_RUST_LANG_LONG.captures(&line) {
+        let link_name = captures.name("link_name").unwrap().as_str();
+        let krate = captures.name("crate").map(|x| x.as_str()).unwrap_or("");
+        let rest = captures.name("rest").unwrap().as_str();
+        // `link_name` and `rest` respectively contain the necessary spacing
+        // and line ending characters.
+        let res = format!("{ln}{c}{r}", ln = link_name, c = krate, r = rest)
+            .replace("/\n", "/index.html\n");
+
+        return if let Some(final_mod) = captures.name("final_mod").map(|x| x.as_str()) {
+            res.replace(final_mod, &format!("{}/index.html", final_mod))
+        } else {
+            res.replace("/#", "/index.html#")
+        };
     }
 
     line

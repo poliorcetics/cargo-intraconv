@@ -3173,6 +3173,63 @@ mod transform_line {
         let line = "[`link`]: https://docs.rs/name/latest/name/mod/struct.Type.html\n";
         let exp = "[`link`]: name::mod::Type\n";
         assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod/#section\n";
+        let exp = "//! [link]: name::mod#section\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "//! [link]: https://docs.rs/name/latest/name/mod#section\n";
+        let exp = "//! [link]: name::mod#section\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/primitive.str.html\n";
+        let exp = "/// [link]: std::str\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/primitive.str.html\n";
+        let exp = "/// [link]: std::str\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/stable/std/primitive.str.html\n";
+        let exp = "/// [link]: std::str\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/1.42.1/std/primitive.str.html\n";
+        let exp = "/// [link]: std::str\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std::str#usage\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std::str#usage\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/stable/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std::str#usage\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/1.42.1/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std::str#usage\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/\n";
+        let exp = "/// [link]: std\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/string/struct.String.html\n";
+        let exp = "/// [link]: std::string::String\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line =
+            "/// [link]: https://doc.rust-lang.org/beta/std/string/struct.String.html#section\n";
+        let exp = "/// [link]: std::string::String#section\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_hir/enum.TyKind.html\n";
+        let exp = "/// [link]: rustc_hir::TyKind\n";
+        assert_eq!(exp, ctx.transform_line(line.into()));
     }
 }
 
@@ -3260,6 +3317,58 @@ mod transform_favored_links {
 
         let line = "[link]: https://docs.rs/name_1\n";
         let exp = "[link]: name_1\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+    }
+
+    #[test]
+    fn matching_favored_links_doc_rust_lang_long() {
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/primitive.str.html\n";
+        let exp = "/// [link]: std/primitive.str.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/primitive.str.html\n";
+        let exp = "/// [link]: std/primitive.str.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/stable/std/primitive.str.html\n";
+        let exp = "/// [link]: std/primitive.str.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/1.42.1/std/primitive.str.html\n";
+        let exp = "/// [link]: std/primitive.str.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std/primitive.str.html#usage\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std/primitive.str.html#usage\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/stable/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std/primitive.str.html#usage\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/1.42.1/std/primitive.str.html#usage\n";
+        let exp = "/// [link]: std/primitive.str.html#usage\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/std/\n";
+        let exp = "/// [link]: std/index.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/beta/std/string/struct.String.html\n";
+        let exp = "/// [link]: std/string/struct.String.html\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line =
+            "/// [link]: https://doc.rust-lang.org/beta/std/string/struct.String.html#section\n";
+        let exp = "/// [link]: std/string/struct.String.html#section\n";
+        assert_eq!(exp, transform_favored_link(line.into()));
+
+        let line = "/// [link]: https://doc.rust-lang.org/nightly/nightly-rustc/rustc_hir/enum.TyKind.html\n";
+        let exp = "/// [link]: rustc_hir/enum.TyKind.html\n";
         assert_eq!(exp, transform_favored_link(line.into()));
     }
 }
