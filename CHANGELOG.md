@@ -2,10 +2,16 @@
 
 - Added more favored links pattern for `docs.rs`: `https://docs.rs/crate-1`
   will now be transformed to `crate_1` when used in a link.
+- Even more favored links: `https://doc.rust-lang.org` is now supported.
 - Don't remove links that are local but use a disambiguator:
   `/// [tracing]: mod@tracing` was previously removed but the `mod@` part could
   be the only thing helping rustdoc find the correct link and so it is
   necessary to keep the link.
+- Not giving any path to `cargo intraconv` was an error before. Now it just
+  find the current workspace (either one crate or a group of crates) and search
+  the links in the `src` directories. This search is recursive. It is still
+  possible to give only one file to `cargo intraconv` and it will only
+  consume this file.
 
 # Version 1.1.0 - 2020-10-29
 
