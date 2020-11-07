@@ -2,6 +2,33 @@
 //
 // - transform_file
 use super::*;
+use crate::{ConversionOptions, Krate};
+
+lazy_static::lazy_static! {
+    static ref CTX_KRATE_DIS_AND_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
+        disambiguate: true,
+        favored_links: true,
+    });
+
+    static ref CTX_KRATE_NO_DIS_NO_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
+        disambiguate: false,
+        favored_links: false,
+    });
+
+    static ref CTX_KRATE_NO_DIS_BUT_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
+        disambiguate: false,
+        favored_links: true,
+    });
+
+    static ref CTX_KRATE_DIS_NO_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
+        disambiguate: true,
+        favored_links: false,
+    });
+}
 
 impl PartialEq<str> for Action {
     fn eq(&self, other: &str) -> bool {
@@ -335,10 +362,15 @@ mod regexes {
 
 #[test]
 fn new() {
-    let ctx = Context {
-        krate: "name".into(),
-        disambiguate: false,
-        apply_favored: true,
+    let krate = Krate::new("name").unwrap();
+    let not_krate = Krate::new("not_name").unwrap();
+
+    let ctx = ConversionContext {
+        options: ConversionOptions {
+            krate: krate.clone(),
+            disambiguate: false,
+            favored_links: true,
+        },
         pos: 0,
         curr_type_block: None,
         end_type_block: String::new(),
@@ -346,16 +378,72 @@ fn new() {
         type_blocks: Vec::new(),
     };
 
-    assert_eq!(Context::new("name".into(), false, true), ctx);
+    assert_eq!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: krate.clone(),
+            disambiguate: false,
+            favored_links: true
+        }),
+        ctx
+    );
 
-    assert_ne!(Context::new("name".into(), true, true), ctx);
-    assert_ne!(Context::new("name".into(), true, false), ctx);
-    assert_ne!(Context::new("name".into(), false, false), ctx);
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: krate.clone(),
+            disambiguate: true,
+            favored_links: true
+        }),
+        ctx
+    );
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: krate.clone(),
+            disambiguate: true,
+            favored_links: false
+        }),
+        ctx
+    );
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: krate.clone(),
+            disambiguate: false,
+            favored_links: false
+        }),
+        ctx
+    );
 
-    assert_ne!(Context::new("not_name".into(), true, true), ctx);
-    assert_ne!(Context::new("not_name".into(), true, false), ctx);
-    assert_ne!(Context::new("not_name".into(), false, true), ctx);
-    assert_ne!(Context::new("not_name".into(), false, false), ctx);
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: not_krate.clone(),
+            disambiguate: true,
+            favored_links: true
+        }),
+        ctx
+    );
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: not_krate.clone(),
+            disambiguate: true,
+            favored_links: false
+        }),
+        ctx
+    );
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: not_krate.clone(),
+            disambiguate: false,
+            favored_links: true
+        }),
+        ctx
+    );
+    assert_ne!(
+        ConversionContext::with_options(ConversionOptions {
+            krate: not_krate.clone(),
+            disambiguate: false,
+            favored_links: false
+        }),
+        ctx
+    );
 }
 
 mod find_type_blocks {
@@ -662,7 +750,7 @@ mod find_type_blocks {
 }
 
 #[test]
-fn item_type_markers() {
+fn test_item_type_markers() {
     let marked_items = [
         "struct",
         "enum",
@@ -730,12 +818,12 @@ mod transform_item {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into(), true, false);
+        let ctx = CTX_KRATE_DIS_NO_FAV.clone();
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
         }
 
-        let ctx = Context::new("std".into(), false, false);
+        let ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
         for &line in &non_item_lines {
             assert_eq!(line, ctx.transform_item(line.into()));
         }
@@ -743,7 +831,7 @@ mod transform_item {
 
     #[test]
     fn matching_items() {
-        let ctx = Context::new("my_crate".into(), true, false);
+        let ctx = CTX_KRATE_DIS_NO_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -843,7 +931,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -858,7 +946,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -965,7 +1053,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -980,7 +1068,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -1000,7 +1088,7 @@ mod transform_item {
 
     #[test]
     fn matching_items_no_disambiguate() {
-        let ctx = Context::new("my_crate".into(), false, false);
+        let ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1094,7 +1182,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -1108,7 +1196,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -1208,7 +1296,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -1222,7 +1310,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -1236,7 +1324,7 @@ mod transform_item {
                     assert_eq!(exp, ctx.transform_item(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#usage\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/struct.Item.html#usage\n",
                         ind = id,
                         bang = b,
                     );
@@ -1270,12 +1358,12 @@ mod transform_module {
             "/// [link]: https://toto.com\n",
         ];
 
-        let ctx = Context::new("std".into(), true, false);
+        let ctx = CTX_KRATE_DIS_NO_FAV.clone();
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
 
-        let ctx = Context::new("std".into(), false, false);
+        let ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
         for &line in &non_module_lines {
             assert_eq!(line, ctx.transform_module(line.into()));
         }
@@ -1283,7 +1371,7 @@ mod transform_module {
 
     #[test]
     fn matching_modules() {
-        let ctx = Context::new("my_crate".into(), true, false);
+        let ctx = CTX_KRATE_DIS_NO_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1327,7 +1415,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1335,7 +1423,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1347,7 +1435,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1355,7 +1443,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1399,7 +1487,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1459,7 +1547,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/mod1/mod2/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1471,7 +1559,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/mod1/mod2/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1487,7 +1575,7 @@ mod transform_module {
 
     #[test]
     fn matching_modules_no_disambiguate() {
-        let ctx = Context::new("my_crate".into(), false, false);
+        let ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -1531,7 +1619,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1539,7 +1627,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1551,7 +1639,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1559,7 +1647,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1603,7 +1691,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1659,7 +1747,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/mod1/mod2/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -1671,7 +1759,7 @@ mod transform_module {
                 assert_eq!(exp, ctx.transform_module(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/mod1/mod2/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -1814,12 +1902,12 @@ mod transform_anchor {
             "/// [Link]: super::Link\n",
         ];
 
-        let ctx = Context::new("my_crate".into(), true, false);
+        let ctx = CTX_KRATE_DIS_NO_FAV.clone();
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
         }
 
-        let ctx = Context::new("my_crate".into(), false, false);
+        let ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
         for &line in &non_anchor_lines {
             assert_eq!(line, ctx.transform_anchor(line.into()));
         }
@@ -1827,8 +1915,8 @@ mod transform_anchor {
 
     #[test]
     fn matching_anchors() {
-        let none_ctx = Context::new("my_crate_none".into(), true, false);
-        let mut some_ctx = Context::new("my_crate_some".into(), true, false);
+        let none_ctx = CTX_KRATE_DIS_NO_FAV.clone();
+        let mut some_ctx = CTX_KRATE_DIS_NO_FAV.clone();
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1880,8 +1968,8 @@ mod transform_anchor {
 
     #[test]
     fn matching_anchors_no_disambiguate() {
-        let none_ctx = Context::new("my_crate_none".into(), false, false);
-        let mut some_ctx = Context::new("my_crate_some".into(), false, false);
+        let none_ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
+        let mut some_ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -1950,12 +2038,12 @@ mod transform_line {
             "/// [Link]: super::Link\n",
         ];
 
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
         }
 
-        let mut ctx = Context::new("my_crate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
         for &line in &non_line_lines {
             assert_eq!(line, ctx.transform_line(line.into()));
         }
@@ -1963,7 +2051,7 @@ mod transform_line {
 
     #[test]
     fn type_block_none_to_some() {
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
 
@@ -1975,7 +2063,7 @@ mod transform_line {
         assert!(ctx.type_blocks.is_empty());
 
         // No disambiguate
-        let mut ctx = Context::new("my_crate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         ctx.type_blocks = vec![("Type".into(), "}".into(), 1)];
 
@@ -1989,7 +2077,7 @@ mod transform_line {
 
     #[test]
     fn type_block_some_to_none() {
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         ctx.pos = 2;
 
@@ -2004,7 +2092,7 @@ mod transform_line {
         assert_eq!(usize::MAX, ctx.type_block_line);
 
         // No disambiguate
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         ctx.pos = 2;
 
@@ -2021,8 +2109,8 @@ mod transform_line {
 
     #[test]
     fn matching_lines_anchor() {
-        let mut none_ctx = Context::new("my_crate_none".into(), true, false);
-        let mut some_ctx = Context::new("my_crate_some".into(), true, false);
+        let mut none_ctx = CTX_KRATE_DIS_NO_FAV.clone();
+        let mut some_ctx = CTX_KRATE_DIS_NO_FAV.clone();
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -2074,8 +2162,8 @@ mod transform_line {
 
     #[test]
     fn matching_lines_anchor_no_disambiguate() {
-        let mut none_ctx = Context::new("my_crate_none".into(), false, true);
-        let mut some_ctx = Context::new("my_crate_some".into(), false, true);
+        let mut none_ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
+        let mut some_ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         some_ctx.curr_type_block = Some("Type".into());
         some_ctx.end_type_block = "}".into();
@@ -2125,7 +2213,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_local_links() {
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2197,7 +2285,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_local_links_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2265,7 +2353,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_modules() {
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2309,7 +2397,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2317,7 +2405,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2329,7 +2417,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2337,7 +2425,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2381,7 +2469,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2441,7 +2529,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/mod1/mod2/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2453,7 +2541,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/mod1/mod2/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2469,7 +2557,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_modules_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2513,7 +2601,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2521,7 +2609,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2533,7 +2621,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2541,7 +2629,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ../my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ../krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2585,7 +2673,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2641,7 +2729,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: my_crate/mod1/mod2/index.html\n",
+                    "{ind}//{bang} [mod link]: krate/mod1/mod2/index.html\n",
                     ind = i,
                     bang = b
                 );
@@ -2653,7 +2741,7 @@ mod transform_line {
                 assert_eq!(exp, ctx.transform_line(line));
 
                 let line = format!(
-                    "{ind}//{bang} [mod link]: ./my_crate/mod1/mod2/index.html#section\n",
+                    "{ind}//{bang} [mod link]: ./krate/mod1/mod2/index.html#section\n",
                     ind = i,
                     bang = b
                 );
@@ -2669,7 +2757,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_items() {
-        let mut ctx = Context::new("my_crate".into(), true, true);
+        let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2740,7 +2828,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -2755,7 +2843,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -2862,7 +2950,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -2877,7 +2965,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -2897,7 +2985,7 @@ mod transform_line {
 
     #[test]
     fn matching_lines_items_no_disambiguate() {
-        let mut ctx = Context::new("my_crate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         let indentations = ["", "  ", "    "];
         let bangs = ["/", "!"];
@@ -2964,7 +3052,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -2978,7 +3066,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/{item}.Item.html\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/{item}.Item.html\n",
                         ind = id,
                         bang = b,
                         item = it
@@ -3078,7 +3166,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -3092,7 +3180,7 @@ mod transform_line {
                     assert_eq!(exp, ctx.transform_line(link));
 
                     let link = format!(
-                        "{ind}//{bang} [`Item`]: ../../my_crate/mod1/mod2/struct.Item.html#{add}.subitem\n",
+                        "{ind}//{bang} [`Item`]: ../../krate/mod1/mod2/struct.Item.html#{add}.subitem\n",
                         ind = id,
                         bang = b,
                         add = it,
@@ -3111,7 +3199,7 @@ mod transform_line {
 
     #[test]
     fn matching_favored_links_no_favored() {
-        let mut ctx = Context::new("my_krate".into(), false, false);
+        let mut ctx = CTX_KRATE_NO_DIS_NO_FAV.clone();
 
         let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
         assert_eq!(line, ctx.transform_line(line.into()));
@@ -3140,7 +3228,7 @@ mod transform_line {
 
     #[test]
     fn matching_favored_links_favored() {
-        let mut ctx = Context::new("my_krate".into(), false, true);
+        let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
         let line = "/// [link]: https://docs.rs/name/latest/name/index.html\n";
         let exp = "/// [link]: name\n";
