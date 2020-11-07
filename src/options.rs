@@ -124,7 +124,7 @@ mod tests {
 
         let name = "a";
         assert_eq!(name, Krate(name.into()).name());
-        
+
         let name = "krate_A_12";
         assert_eq!(name, Krate(name.into()).name());
     }
