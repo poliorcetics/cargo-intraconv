@@ -2,7 +2,10 @@ mod action;
 use action::Action;
 
 mod transform;
-use transform::Context;
+use transform::ConversionContext;
+
+mod options;
+use options::{ConversionOptions, Krate};
 
 mod file_finder;
 
@@ -159,8 +162,21 @@ fn run_for_file(path: &Path, args: &Args) {
         }
     };
 
+    let krate = match Krate::new(&args.krate) {
+        Some(k) => k,
+        None => {
+            eprintln!("The given crate name is invalid: '{}'", args.krate);
+            return;
+        }
+    };
+    let opts = ConversionOptions {
+        krate,
+        disambiguate: args.disambiguate,
+        favored_links: !args.no_favored,
+    };
+
     let display_changes = !args.quiet;
-    let mut ctx = Context::new(args.krate.clone(), args.disambiguate, !args.no_favored);
+    let mut ctx = ConversionContext::with_options(opts);
 
     // First display the path of the file that is about to be opened and tested.
     let path_display = path.display().to_string();

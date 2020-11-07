@@ -155,31 +155,26 @@ lazy_static! {
 /// Context for the check. It notably contains informations about the crate and
 /// the current type (e.g, for `#method.name` links).
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct Context {
-    /// Name of the crate on which the tool is run.
-    /// It must have been checked to be a correct identifier for Rust.
-    krate: String,
-    /// Use rustdoc disambiguators in front of the transformed links
-    /// ('type@', ...). Ending disambiguators like '()' and '!' are always
-    /// added, regardless of this option.
-    disambiguate: bool,
-    /// If `true` the regexes in the `fav_links` module will be checked for
-    /// and their transformation applied before HTTP link are ignored.
-    ///
-    /// See also the `transform_favored_link` function.
-    apply_favored: bool,
+pub struct ConversionContext {
+    /// Options to apply when transforming a single file.
+    options: crate::ConversionOptions,
+
     /// Current line number.
     pos: usize,
+
     /// Name of the type that is `Self` for the current block.
     curr_type_block: Option<String>,
+
     /// End of the current block for `Self` (if any).
     end_type_block: String,
+
     /// Line at which the current type block was declared.
     ///
     /// A type block cannot end before this line (obviously).
     /// The line numbers start at one, to match those of the file being
     /// transformed.
     type_block_line: usize,
+
     // NOTE: at the moment nested type blocks are not handled.
     /// All types blocks known to the context.
     ///
@@ -190,17 +185,11 @@ pub struct Context {
     type_blocks: Vec<(String, String, usize)>,
 }
 
-impl Context {
-    /// Creates a new `Context` with the given crate.
-    ///
-    /// NOTE: the `krate` parameter must contain a valid Rust identifier for a
-    /// crate name (basically the regex `[\w_]+`) else the links that use it
-    /// will be broken by the conversion.
-    pub fn new(krate: String, disambiguate: bool, apply_favored: bool) -> Self {
+impl ConversionContext {
+    /// Creates a new `ConversionContext` with the given options.
+    pub fn with_options(options: crate::ConversionOptions) -> Self {
         Self {
-            krate,
-            disambiguate,
-            apply_favored,
+            options,
             pos: 0,
             curr_type_block: None,
             end_type_block: String::new(),
@@ -249,7 +238,7 @@ impl Context {
             }
         }
 
-        let line = if self.apply_favored {
+        let line = if self.options.favored_links {
             transform_favored_link(line)
         } else {
             line
@@ -310,7 +299,7 @@ impl Context {
                 r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
                 r"(?:\./)?",
                 r"(?P<supers>(?:\.\./)+)?",
-                &format!(r"(?:(?P<crate>{})/)?", self.krate),
+                &format!(r"(?:(?P<crate>{})/)?", self.options.krate.name()),
                 r"(?P<intermediates>(?:[A-Za-z0-9_]+/)+)?",
                 &format!(r"(?P<item_type>{})\.", ITEM_TYPES.join("|")),
                 r"(?P<elem>[a-zA-Z0-9_]+)\.html",
@@ -347,7 +336,7 @@ impl Context {
         let true_item_type = add_item_type.unwrap_or(item_type);
         let (item_marker_start, item_marker_end) = item_type_markers(true_item_type);
 
-        if self.disambiguate {
+        if self.options.disambiguate {
             new.push_str(item_marker_start);
         }
 
@@ -402,7 +391,7 @@ impl Context {
                 r"^(?P<link_name>\s*(?://[!/] )?\[.*?\]: )",
                 r"(?:\./)?",
                 r"(?P<supers>(?:\.\./)+)?",
-                &format!(r"(?:(?P<crate>{})/)?", self.krate),
+                &format!(r"(?:(?P<crate>{})/)?", self.options.krate.name()),
                 r"(?P<mods>(?:[a-zA-Z0-9_]+?/)+)?",
                 r"index\.html",
                 r"(?P<section>#[a-zA-Z0-9_\-\.]+)?\n$",
@@ -421,7 +410,7 @@ impl Context {
 
         let mut new = String::with_capacity(64);
         new.push_str(link_name);
-        if self.disambiguate {
+        if self.options.disambiguate {
             new.push_str("mod@");
         }
 
@@ -481,7 +470,7 @@ impl Context {
 
             let (start, end) = item_type_markers(item_type);
 
-            let start = if self.disambiguate { start } else { "" };
+            let start = if self.options.disambiguate { start } else { "" };
 
             format!(
                 "{link}{s}{ty}::{add}{e}\n",
