@@ -1,6 +1,36 @@
 use lazy_static::lazy_static;
 use regex::Regex;
 
+/// All item types that can be produced by `rustdoc`.
+pub const ALL_ITEM_TYPES: &[&str] = &[
+    "associatedconstant",
+    "associatedtype",
+    "attr",
+    "constant",
+    "derive",
+    "enum",
+    "externcrate",
+    "fn",
+    "foreigntype",
+    "impl",
+    "import",
+    "keyword",
+    "macro",
+    "method",
+    "mod",
+    "opaque",
+    "primitive",
+    "static",
+    "struct",
+    "structfield",
+    "trait",
+    "traitalias",
+    "tymethod",
+    "type",
+    "union",
+    "variant",
+];
+
 lazy_static! {
     /// This regex will match the long form of markdown link.
     ///
@@ -16,6 +46,13 @@ lazy_static! {
         r"\n$",
     ))
     .unwrap();
+
+    /// Non-capturing regex to check if something is exactly an item type as
+    /// seen by rustdoc.
+    ///
+    /// This is not directly a `regex::Regex` but a `String` because it used as
+    /// additional precision when building more focused regexes.
+    pub static ref ITEM_TYPES: String = format!(r"(?:{})", ALL_ITEM_TYPES.join("|"));
 }
 
 #[cfg(test)]
@@ -82,5 +119,18 @@ mod tests {
         assert!(LINK_TO_TREAT_LONG.is_match("[¨*%£?./+>]: mod1\n"));
         assert!(LINK_TO_TREAT_LONG.is_match("[ô€Ù@∞…÷≠≤]: mod1\n"));
         assert!(LINK_TO_TREAT_LONG.is_match("[Ô¥‰#¿•\\±≥]: mod1\n"));
+    }
+
+    #[test]
+    fn item_types() {
+        let reg = Regex::new(&ITEM_TYPES).unwrap();
+        for item in ALL_ITEM_TYPES {
+            assert!(reg.is_match(item));
+        }
+
+        assert!(!reg.is_match("text"));
+        assert!(!reg.is_match("0BDS"));
+        assert!(!reg.is_match("sdfd"));
+        assert!(!reg.is_match("STRUCT"));
     }
 }
