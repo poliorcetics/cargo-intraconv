@@ -3,13 +3,31 @@ mod consts;
 
 use std::path::Path;
 
+/// Parts of a markdown link.
+///
+/// For now only long markdown links are handled correctly.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct Parts<'a> {
+    /// Header of the link. This contains everything from the start of the line
+    /// to the final `\s` character before the start of the link itself.
     header: &'a str,
+
+    /// The backing link, seen as a path.
+    ///
+    /// Seeing it as a path (even when its a URL) will help with detection of
+    /// false positives (a link to `https://example.com`) and of favored links
+    /// (e.g a link to `https://docs.rs/regex`) as well as everything else
+    /// (items, associated items, sections, modules, ...) since most
+    /// information can be found either in the first or last component of the
+    /// link once it has been separated by `/`.
     link: &'a Path,
 }
 
 impl<'a> Parts<'a> {
+    /// Find the parts of a link in a line (ending with `\n`).
+    ///
+    /// When the line is not a matching link the passed line is returned in the
+    /// `Result::Err` variant.
     fn from_line(line: &'a str) -> Result<Self, &str> {
         let captures = match consts::LINK_TO_TREAT_LONG.captures(line) {
             Some(c) => c,
