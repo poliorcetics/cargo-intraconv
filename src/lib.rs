@@ -7,6 +7,8 @@ use transform::ConversionContext;
 mod options;
 use options::{ConversionOptions, Krate};
 
+mod link_analyser;
+
 mod file_finder;
 
 use argh::FromArgs;
