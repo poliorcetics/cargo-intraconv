@@ -1,17 +1,20 @@
-use std::path::Path;
+use regex::Regex;
+use std::path::{Component, Path};
 
+/// A `Link` is a candidate for transformation to an intra-doc link.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-struct Link<'a>(&'a Path);
+pub struct Link<'a>(&'a Path);
 
 impl<'a> Link<'a> {
+    /// `true` if the link is an HTTP one. This includes favored links.
     fn is_http(&self) -> bool {
         (self.0.starts_with("http:") || self.0.starts_with("https:"))
             && self.0.components().count() >= 2
     }
 
+    /// `true` if the link is a favored HTTP link.
     fn is_favored(&self) -> bool {
         use std::ffi::OsStr;
-        use std::path::Component;
 
         if !self.is_http() {
             return false;
@@ -66,10 +69,8 @@ impl<'a> Link<'a> {
         }
     }
 
+    /// `true` if the link ends with an associated item alone.
     fn is_associated_item(&self) -> bool {
-        use regex::Regex;
-        use std::path::Component;
-
         // It is not invalid to have './' before the associated item when it
         // points to a module-level item.
         let mut comps = self.0.components().skip_while(|c| c == &Component::CurDir);
@@ -93,10 +94,8 @@ impl<'a> Link<'a> {
         ASSOC_ITEM.is_match(assoc_item)
     }
 
+    /// `true` if the link ends with a section alone.
     fn is_section(&self) -> bool {
-        use regex::Regex;
-        use std::path::Component;
-
         if self.is_associated_item() {
             return false;
         }
@@ -123,10 +122,9 @@ impl<'a> Link<'a> {
         SECTION.is_match(section)
     }
 
+    /// `true` if the link ends with an item. It can have a section or
+    /// associated item tacked on like `struct.String.html#section`.
     fn is_item(&self) -> bool {
-        use regex::Regex;
-        use std::path::Component;
-
         if self.is_http() || self.is_favored() {
             return false;
         }
@@ -185,10 +183,9 @@ impl<'a> Link<'a> {
         true
     }
 
+    /// `true` if the link ends with a module. It can have a section or
+    /// associated item tacked on like `index.html#section` or `mod1#section`.
     fn is_module(&self) -> bool {
-        use regex::Regex;
-        use std::path::Component;
-
         if self.is_http() || self.is_favored() {
             return false;
         }
@@ -231,230 +228,242 @@ impl<'a> Link<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl<'a> From<&'a Path> for Link<'a> {
+    /// Wraps a `std::path::Path` in a `Link` to check if it can be transformed
+    /// or not.
+    fn from(path: &'a Path) -> Self {
+        Self(path)
+    }
+}
 
-    #[test]
-    fn is_http() {
-        let link = Link(&Path::new("http/docs.rs"));
-        assert!(!link.is_http());
+#[test]
+fn from_path() {
+    assert_eq!(Link::from(Path::new("test")).0, Path::new("test"));
+    assert_ne!(Link::from(Path::new("test")).0, Path::new("not/test"));
 
-        let link = Link(&Path::new("http//docs.rs"));
-        assert!(!link.is_http());
+    assert_eq!(Link::from(Path::new("mod1/mod2")).0, Path::new("mod1/mod2"));
+    assert_ne!(Link::from(Path::new("mod1/mod2")).0, Path::new("mod2/mod1"));
+}
 
-        let link = Link(&Path::new("http://docs.rs"));
-        assert!(link.is_http());
+#[test]
+fn is_http() {
+    let link = Link(&Path::new("http/docs.rs"));
+    assert!(!link.is_http());
 
-        let link = Link(&Path::new("http://example.com"));
-        assert!(link.is_http());
+    let link = Link(&Path::new("http//docs.rs"));
+    assert!(!link.is_http());
 
-        let link = Link(&Path::new("https://example.com"));
-        assert!(link.is_http());
+    let link = Link(&Path::new("http://docs.rs"));
+    assert!(link.is_http());
 
-        let link = Link(&Path::new(
-            "https://example.com/sub1/sub2/elem.html#section",
-        ));
-        assert!(link.is_http());
+    let link = Link(&Path::new("http://example.com"));
+    assert!(link.is_http());
+
+    let link = Link(&Path::new("https://example.com"));
+    assert!(link.is_http());
+
+    let link = Link(&Path::new(
+        "https://example.com/sub1/sub2/elem.html#section",
+    ));
+    assert!(link.is_http());
+}
+
+#[test]
+fn is_favored() {
+    // None.
+    let link = Link(&Path::new("https://example.com"));
+    assert!(!link.is_favored());
+
+    // doc.rs
+    let link = Link(&Path::new("https://docs.rs"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://docs.rs/regex/"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://docs.rs/regex/1.4.2"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://docs.rs/regex/1.4.2/regex"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html",
+    ));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples",
+    ));
+    assert!(link.is_favored());
+
+    // doc.rust-lang.org
+    let link = Link(&Path::new("https://doc.rust-lang.org/"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/other"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/beta"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/stable"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/1.42.0"));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://doc.rust-lang.org/nightly/nightly-rustc",
+    ));
+    assert!(!link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly/std"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly/alloc"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly/core"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly/test"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new("https://doc.rust-lang.org/nightly/proc_macro"));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://doc.rust-lang.org/nightly/std/string/index.html",
+    ));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html",
+    ));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples",
+    ));
+    assert!(link.is_favored());
+
+    let link = Link(&Path::new(
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain",
+    ));
+    assert!(link.is_favored());
+}
+
+#[test]
+fn is_associated_item() {
+    let mut assoc_item = String::with_capacity(40);
+
+    for item in crate::link_analyser::consts::ALL_ITEM_TYPES {
+        assoc_item.clear();
+        assoc_item.push('#');
+        assoc_item.push_str(item);
+        assoc_item.push_str(".Item");
+
+        assert!(Link(Path::new(&assoc_item)).is_associated_item());
     }
 
-    #[test]
-    fn is_favored() {
-        // None.
-        let link = Link(&Path::new("https://example.com"));
-        assert!(!link.is_favored());
+    assert!(Link(Path::new("./#struct.Item")).is_associated_item());
+    assert!(Link(Path::new("././#struct.Item")).is_associated_item());
 
-        // doc.rs
-        let link = Link(&Path::new("https://docs.rs"));
-        assert!(!link.is_favored());
+    assert!(!Link(Path::new("struct.Item")).is_associated_item());
+    assert!(!Link(Path::new(".#struct.Item")).is_associated_item());
+    assert!(!Link(Path::new("#struct.Item.html")).is_associated_item());
+    assert!(!Link(Path::new("../#struct.Item.html")).is_associated_item());
+    assert!(!Link(Path::new("#struct.Item/rest")).is_associated_item());
+    assert!(!Link(Path::new("#struct.0Item")).is_associated_item());
+}
 
-        let link = Link(&Path::new("https://docs.rs/regex/"));
-        assert!(link.is_favored());
+#[test]
+fn is_section() {
+    assert!(!Link(Path::new("#struct.Item")).is_section());
+    assert!(!Link(Path::new("./#struct.Item")).is_section());
+    assert!(!Link(Path::new("././#struct.Item")).is_section());
 
-        let link = Link(&Path::new("https://docs.rs/regex/1.4.2"));
-        assert!(link.is_favored());
+    assert!(!Link(Path::new("../#section")).is_section());
+    assert!(!Link(Path::new("#section/rest")).is_section());
 
-        let link = Link(&Path::new("https://docs.rs/regex/1.4.2/regex"));
-        assert!(link.is_favored());
+    assert!(Link(Path::new("#section-a")).is_section());
+    assert!(Link(Path::new("#section-1")).is_section());
+    assert!(Link(Path::new("#section-A")).is_section());
+    assert!(Link(Path::new("#section_a")).is_section());
+    assert!(Link(Path::new("#section.a")).is_section());
+    assert!(Link(Path::new("#Section.a")).is_section());
+    assert!(Link(Path::new("#rection.a")).is_section());
+    assert!(Link(Path::new("#_ection.a")).is_section());
+}
 
-        let link = Link(&Path::new(
-            "https://docs.rs/regex/1.4.2/regex/struct.Regex.html",
-        ));
-        assert!(link.is_favored());
+#[test]
+fn is_item() {
+    let mut rust_item = String::with_capacity(40);
 
-        let link = Link(&Path::new(
-            "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples",
-        ));
-        assert!(link.is_favored());
+    for item in crate::link_analyser::consts::ALL_ITEM_TYPES {
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert!(Link(Path::new(&rust_item)).is_item());
 
-        // doc.rust-lang.org
-        let link = Link(&Path::new("https://doc.rust-lang.org/"));
-        assert!(!link.is_favored());
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html#method.call");
+        assert!(Link(Path::new(&rust_item)).is_item());
 
-        let link = Link(&Path::new("https://doc.rust-lang.org/other"));
-        assert!(!link.is_favored());
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html#section-name");
+        assert!(Link(Path::new(&rust_item)).is_item());
 
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly"));
-        assert!(!link.is_favored());
+        rust_item.clear();
+        rust_item.push_str("./");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert!(Link(Path::new(&rust_item)).is_item());
 
-        let link = Link(&Path::new("https://doc.rust-lang.org/beta"));
-        assert!(!link.is_favored());
+        rust_item.clear();
+        rust_item.push_str("../");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert!(Link(Path::new(&rust_item)).is_item());
 
-        let link = Link(&Path::new("https://doc.rust-lang.org/stable"));
-        assert!(!link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/1.42.0"));
-        assert!(!link.is_favored());
-
-        let link = Link(&Path::new(
-            "https://doc.rust-lang.org/nightly/nightly-rustc",
-        ));
-        assert!(!link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly/std"));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly/alloc"));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly/core"));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly/test"));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new("https://doc.rust-lang.org/nightly/proc_macro"));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new(
-            "https://doc.rust-lang.org/nightly/std/string/index.html",
-        ));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new(
-            "https://doc.rust-lang.org/nightly/std/string/struct.String.html",
-        ));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new(
-            "https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples",
-        ));
-        assert!(link.is_favored());
-
-        let link = Link(&Path::new(
-            "https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain",
-        ));
-        assert!(link.is_favored());
+        rust_item.clear();
+        rust_item.push_str("../mod1/mod2/");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert!(Link(Path::new(&rust_item)).is_item());
     }
 
-    #[test]
-    fn is_associated_item() {
-        let mut assoc_item = String::with_capacity(40);
+    assert!(!Link(Path::new("#section")).is_item());
+    assert!(!Link(Path::new("#fn.associated_item")).is_item());
+    assert!(!Link(Path::new("https://docs.rs/regex")).is_item());
+    assert!(!Link(Path::new("http://example.com")).is_item());
+    assert!(!Link(Path::new("mod1")).is_item());
+    assert!(!Link(Path::new("../mod1/mod2/index.html#section")).is_item());
+}
 
-        for item in crate::link_analyser::consts::ALL_ITEM_TYPES {
-            assoc_item.clear();
-            assoc_item.push('#');
-            assoc_item.push_str(item);
-            assoc_item.push_str(".Item");
+#[test]
+fn is_module() {
+    assert!(Link(Path::new("mod1")).is_module());
+    assert!(Link(Path::new("mod1#section")).is_module());
+    assert!(Link(Path::new("index.html")).is_module());
+    assert!(Link(Path::new("index.html#section")).is_module());
+    assert!(Link(Path::new("mod1/mod2")).is_module());
+    assert!(Link(Path::new("./mod1/mod2")).is_module());
+    assert!(Link(Path::new("../mod1/mod2")).is_module());
+    assert!(Link(Path::new("../mod1/mod2#section")).is_module());
+    assert!(Link(Path::new("../mod1/mod2/index.html")).is_module());
+    assert!(Link(Path::new("../mod1/mod2/index.html#section")).is_module());
 
-            assert!(Link(Path::new(&assoc_item)).is_associated_item());
-        }
-
-        assert!(Link(Path::new("./#struct.Item")).is_associated_item());
-        assert!(Link(Path::new("././#struct.Item")).is_associated_item());
-
-        assert!(!Link(Path::new("struct.Item")).is_associated_item());
-        assert!(!Link(Path::new(".#struct.Item")).is_associated_item());
-        assert!(!Link(Path::new("#struct.Item.html")).is_associated_item());
-        assert!(!Link(Path::new("../#struct.Item.html")).is_associated_item());
-        assert!(!Link(Path::new("#struct.Item/rest")).is_associated_item());
-        assert!(!Link(Path::new("#struct.0Item")).is_associated_item());
-    }
-
-    #[test]
-    fn is_section() {
-        assert!(!Link(Path::new("#struct.Item")).is_section());
-        assert!(!Link(Path::new("./#struct.Item")).is_section());
-        assert!(!Link(Path::new("././#struct.Item")).is_section());
-
-        assert!(!Link(Path::new("../#section")).is_section());
-        assert!(!Link(Path::new("#section/rest")).is_section());
-
-        assert!(Link(Path::new("#section-a")).is_section());
-        assert!(Link(Path::new("#section-1")).is_section());
-        assert!(Link(Path::new("#section-A")).is_section());
-        assert!(Link(Path::new("#section_a")).is_section());
-        assert!(Link(Path::new("#section.a")).is_section());
-        assert!(Link(Path::new("#Section.a")).is_section());
-        assert!(Link(Path::new("#rection.a")).is_section());
-        assert!(Link(Path::new("#_ection.a")).is_section());
-    }
-
-    #[test]
-    fn is_item() {
-        let mut rust_item = String::with_capacity(40);
-
-        for item in crate::link_analyser::consts::ALL_ITEM_TYPES {
-            rust_item.clear();
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html");
-            assert!(Link(Path::new(&rust_item)).is_item());
-
-            rust_item.clear();
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html#method.call");
-            assert!(Link(Path::new(&rust_item)).is_item());
-
-            rust_item.clear();
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html#section-name");
-            assert!(Link(Path::new(&rust_item)).is_item());
-
-            rust_item.clear();
-            rust_item.push_str("./");
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html");
-            assert!(Link(Path::new(&rust_item)).is_item());
-
-            rust_item.clear();
-            rust_item.push_str("../");
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html");
-            assert!(Link(Path::new(&rust_item)).is_item());
-
-            rust_item.clear();
-            rust_item.push_str("../mod1/mod2/");
-            rust_item.push_str(item);
-            rust_item.push_str(".Type.html");
-            assert!(Link(Path::new(&rust_item)).is_item());
-        }
-
-        assert!(!Link(Path::new("#section")).is_item());
-        assert!(!Link(Path::new("#fn.associated_item")).is_item());
-        assert!(!Link(Path::new("https://docs.rs/regex")).is_item());
-        assert!(!Link(Path::new("http://example.com")).is_item());
-        assert!(!Link(Path::new("mod1")).is_item());
-        assert!(!Link(Path::new("../mod1/mod2/index.html#section")).is_item());
-    }
-
-    #[test]
-    fn is_module() {
-        assert!(Link(Path::new("mod1")).is_module());
-        assert!(Link(Path::new("mod1#section")).is_module());
-        assert!(Link(Path::new("index.html")).is_module());
-        assert!(Link(Path::new("index.html#section")).is_module());
-        assert!(Link(Path::new("mod1/mod2")).is_module());
-        assert!(Link(Path::new("./mod1/mod2")).is_module());
-        assert!(Link(Path::new("../mod1/mod2")).is_module());
-        assert!(Link(Path::new("../mod1/mod2#section")).is_module());
-        assert!(Link(Path::new("../mod1/mod2/index.html")).is_module());
-        assert!(Link(Path::new("../mod1/mod2/index.html#section")).is_module());
-
-        assert!(!Link(Path::new("#section")).is_module());
-        assert!(!Link(Path::new("#fn.associated_item")).is_module());
-        assert!(!Link(Path::new("struct.Type.html#fn.associated_item")).is_module());
-        assert!(!Link(Path::new("struct.Type.html#section")).is_module());
-        assert!(!Link(Path::new("https://docs.rs/regex/latest/regex/index.html")).is_module());
-        assert!(!Link(Path::new("http://example.com")).is_module());
-    }
+    assert!(!Link(Path::new("#section")).is_module());
+    assert!(!Link(Path::new("#fn.associated_item")).is_module());
+    assert!(!Link(Path::new("struct.Type.html#fn.associated_item")).is_module());
+    assert!(!Link(Path::new("struct.Type.html#section")).is_module());
+    assert!(!Link(Path::new("https://docs.rs/regex/latest/regex/index.html")).is_module());
+    assert!(!Link(Path::new("http://example.com")).is_module());
 }
