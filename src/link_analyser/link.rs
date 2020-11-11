@@ -184,6 +184,51 @@ impl<'a> Link<'a> {
 
         true
     }
+
+    fn is_module(&self) -> bool {
+        use regex::Regex;
+        use std::path::Component;
+
+        if self.is_http() || self.is_favored() {
+            return false;
+        }
+
+        lazy_static::lazy_static! {
+            static ref LONG_FORM: Regex = Regex::new(r"^(?:index.html|[a-zA-Z_][a-zA-Z0-9_]*)(?:#[a-zA-Z0-9_\-\.]+)?$").unwrap();
+            static ref RUST_IDENTIFIER: Regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$").unwrap();
+        }
+
+        // Reverse the iterator to have easy access to the last element.
+        let mut comps = self.0.components().rev();
+        // If the last element is incorrect this cannot be an item.
+        match comps.next().expect("The last element").as_os_str().to_str() {
+            Some(last_comp) => {
+                if !LONG_FORM.is_match(last_comp) {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+
+        // Check all the other component to ensure they are either `.` or `..`
+        // or a valid rust identifier (a module name). If not, return `false`.
+        for comp in comps {
+            match comp {
+                Component::CurDir | Component::ParentDir => (),
+                Component::Normal(path) => match path.to_str() {
+                    Some(path) => {
+                        if !RUST_IDENTIFIER.is_match(path) {
+                            return false;
+                        }
+                    }
+                    None => return false,
+                },
+                _ => return false,
+            }
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]
@@ -390,5 +435,26 @@ mod tests {
         assert!(!Link(Path::new("http://example.com")).is_item());
         assert!(!Link(Path::new("mod1")).is_item());
         assert!(!Link(Path::new("../mod1/mod2/index.html#section")).is_item());
+    }
+
+    #[test]
+    fn is_module() {
+        assert!(Link(Path::new("mod1")).is_module());
+        assert!(Link(Path::new("mod1#section")).is_module());
+        assert!(Link(Path::new("index.html")).is_module());
+        assert!(Link(Path::new("index.html#section")).is_module());
+        assert!(Link(Path::new("mod1/mod2")).is_module());
+        assert!(Link(Path::new("./mod1/mod2")).is_module());
+        assert!(Link(Path::new("../mod1/mod2")).is_module());
+        assert!(Link(Path::new("../mod1/mod2#section")).is_module());
+        assert!(Link(Path::new("../mod1/mod2/index.html")).is_module());
+        assert!(Link(Path::new("../mod1/mod2/index.html#section")).is_module());
+
+        assert!(!Link(Path::new("#section")).is_module());
+        assert!(!Link(Path::new("#fn.associated_item")).is_module());
+        assert!(!Link(Path::new("struct.Type.html#fn.associated_item")).is_module());
+        assert!(!Link(Path::new("struct.Type.html#section")).is_module());
+        assert!(!Link(Path::new("https://docs.rs/regex/latest/regex/index.html")).is_module());
+        assert!(!Link(Path::new("http://example.com")).is_module());
     }
 }
