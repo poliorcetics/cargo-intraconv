@@ -1,4 +1,5 @@
 use regex::Regex;
+use std::borrow::Cow;
 use std::path::{Component, Path};
 
 /// A `Link` is a candidate for transformation to an intra-doc link.
@@ -69,57 +70,79 @@ impl<'a> Link<'a> {
         }
     }
 
-    /// `true` if the link ends with an associated item alone.
-    fn is_associated_item(&self) -> bool {
+    /// Returns `None` when `self` is not an associated item link.
+    ///
+    /// When it is the parts are found while limiting allocations to the
+    /// strict minimum.
+    fn associated_item_parts(&self) -> Option<LinkParts<'a>> {
         // It is not invalid to have './' before the associated item when it
         // points to a module-level item.
         let mut comps = self.0.components().skip_while(|c| c == &Component::CurDir);
-        let assoc_item = match comps.next().map(|ai| ai.as_os_str().to_str()) {
-            Some(Some(ai)) => ai,
-            _ => return false,
-        };
-
-        // The associoted item MUST be the last element.
+        let assoc_item = comps.next()?.as_os_str().to_str()?;
+        // The associated item MUST be the last element.
         if comps.next().is_some() {
-            return false;
+            return None;
         }
 
         lazy_static::lazy_static! {
             static ref ASSOC_ITEM: Regex = Regex::new(&format!(
-                r"^#{}\.[a-zA-Z_][a-zA-Z0-9_]*$",
-                crate::link_analyser::consts::ITEM_TYPES.as_str()
+                r"^#(?P<dis>{})\.(?P<name>{})$",
+                crate::link_analyser::consts::ITEM_TYPES.as_str(),
+                crate::link_analyser::consts::RUST_IDENTIFIER,
             )).unwrap();
         }
 
-        ASSOC_ITEM.is_match(assoc_item)
+        let captures = ASSOC_ITEM.captures(assoc_item)?;
+        let dis = Disambiguator::from(captures.name("dis")?.as_str());
+        let name = captures.name("name")?.as_str().into();
+
+        let start = LinkStart::Local;
+        let modules = None;
+        let end = LinkEnd::Assoc(AssociatedItem { dis, name });
+
+        Some(LinkParts {
+            start,
+            modules,
+            end,
+        })
     }
 
-    /// `true` if the link ends with a section alone.
-    fn is_section(&self) -> bool {
-        if self.is_associated_item() {
-            return false;
+    /// Returns `None` when `self` is not a section link.
+    ///
+    /// When it is the parts are found while limiting allocations to the
+    /// strict minimum.
+    fn section_parts(&self) -> Option<LinkParts<'a>> {
+        if self.associated_item_parts().is_some() {
+            return None;
         }
 
         // It is not invalid to have './' before the section when it points to
         // a module-level item.
         let mut comps = self.0.components().skip_while(|c| c == &Component::CurDir);
-        let section = match comps.next().map(|s| s.as_os_str().to_str()) {
-            Some(Some(s)) => s,
-            _ => return false,
-        };
-
+        let section = comps.next()?.as_os_str().to_str()?;
         // The section MUST be the last element.
         if comps.next().is_some() {
-            return false;
+            return None;
         }
 
         lazy_static::lazy_static! {
             static ref SECTION: Regex = Regex::new(
-                r"^#[a-zA-Z0-9_\-\.]+$"
+                &format!(r"^(?P<name>{})$", crate::link_analyser::consts::HTML_SECTION)
             ).unwrap();
         }
 
-        SECTION.is_match(section)
+        let captures = SECTION.captures(section)?;
+        let name = captures.name("name")?.as_str().strip_prefix('#')?.into();
+
+        let start = LinkStart::Local;
+        let modules = None;
+        let end = LinkEnd::Section { name };
+
+        Some(LinkParts {
+            start,
+            modules,
+            end,
+        })
     }
 
     /// `true` if the link ends with an item. It can have a section or
@@ -233,6 +256,84 @@ impl<'a> From<&'a Path> for Link<'a> {
     /// or not.
     fn from(path: &'a Path) -> Self {
         Self(path)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+enum Disambiguator {
+    None,
+    Start(&'static str),
+    End(&'static str),
+}
+
+impl From<&'_ str> for Disambiguator {
+    fn from(s: &'_ str) -> Self {
+        match s {
+            "struct" | "enum" | "trait" | "union" | "type" => Self::Start("type@"),
+            "const" | "static" | "value" => Self::Start("value@"),
+            "derive" | "attr" => Self::Start("macro@"),
+            "primitive" => Self::Start("prim@"),
+            "mod" => Self::Start("mod@"),
+            "fn" | "method" => Self::End("()"),
+            "macro" => Self::End("!"),
+            _ => Self::None,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+enum LinkStart<'a> {
+    Local,
+    Mod(Cow<'a, str>),
+    Crate(Cow<'a, str>),
+    Supers(usize),
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+struct Modules<'a>(&'a Path);
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+enum LinkEnd<'a> {
+    Section {
+        name: Cow<'a, str>,
+    },
+    Assoc(AssociatedItem<'a>),
+    Item {
+        dis: Disambiguator,
+        name: Cow<'a, str>,
+        assoc: Option<AssociatedItem<'a>>,
+    },
+    Module {
+        name: Cow<'a, str>,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+struct AssociatedItem<'a> {
+    dis: Disambiguator,
+    name: Cow<'a, str>,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+struct LinkParts<'a> {
+    start: LinkStart<'a>,
+    modules: Option<Modules<'a>>,
+    end: LinkEnd<'a>,
+}
+
+impl<'a> LinkParts<'a> {
+    fn dis(&self) -> Disambiguator {
+        match self.end {
+            LinkEnd::Section { name: _ } | LinkEnd::Module { name: _ } => {
+                Disambiguator::from("mod")
+            }
+            LinkEnd::Assoc(ref assoc) => assoc.dis,
+            LinkEnd::Item {
+                dis,
+                name: _,
+                ref assoc,
+            } => assoc.as_ref().map_or(dis, |a| a.dis),
+        }
     }
 }
 
@@ -358,46 +459,173 @@ fn is_favored() {
 }
 
 #[test]
-fn is_associated_item() {
+fn associated_item_parts() {
     let mut assoc_item = String::with_capacity(40);
 
-    for item in crate::link_analyser::consts::ALL_ITEM_TYPES {
+    for &item in crate::link_analyser::consts::ALL_ITEM_TYPES {
         assoc_item.clear();
         assoc_item.push('#');
         assoc_item.push_str(item);
         assoc_item.push_str(".Item");
 
-        assert!(Link(Path::new(&assoc_item)).is_associated_item());
+        assert_eq!(
+            Link(Path::new(&assoc_item)).associated_item_parts(),
+            Some(LinkParts {
+                start: LinkStart::Local,
+                modules: None,
+                end: LinkEnd::Assoc(AssociatedItem {
+                    dis: Disambiguator::from(item),
+                    name: Cow::from("Item")
+                }),
+            })
+        );
     }
 
-    assert!(Link(Path::new("./#struct.Item")).is_associated_item());
-    assert!(Link(Path::new("././#struct.Item")).is_associated_item());
+    assert_eq!(
+        Link(Path::new("./#struct.Item")).associated_item_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Assoc(AssociatedItem {
+                dis: Disambiguator::from("struct"),
+                name: Cow::from("Item")
+            }),
+        })
+    );
+    assert_eq!(
+        Link(Path::new("././#struct.Item")).associated_item_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Assoc(AssociatedItem {
+                dis: Disambiguator::from("struct"),
+                name: Cow::from("Item")
+            }),
+        })
+    );
 
-    assert!(!Link(Path::new("struct.Item")).is_associated_item());
-    assert!(!Link(Path::new(".#struct.Item")).is_associated_item());
-    assert!(!Link(Path::new("#struct.Item.html")).is_associated_item());
-    assert!(!Link(Path::new("../#struct.Item.html")).is_associated_item());
-    assert!(!Link(Path::new("#struct.Item/rest")).is_associated_item());
-    assert!(!Link(Path::new("#struct.0Item")).is_associated_item());
+    assert_eq!(Link(Path::new("struct.Item")).associated_item_parts(), None);
+    assert_eq!(
+        Link(Path::new(".#struct.Item")).associated_item_parts(),
+        None
+    );
+    assert_eq!(
+        Link(Path::new("#struct.Item.html")).associated_item_parts(),
+        None
+    );
+    assert_eq!(
+        Link(Path::new("../#struct.Item.html")).associated_item_parts(),
+        None
+    );
+    assert_eq!(
+        Link(Path::new("#struct.Item/rest")).associated_item_parts(),
+        None
+    );
+    assert_eq!(
+        Link(Path::new("#struct.0Item")).associated_item_parts(),
+        None
+    );
 }
 
 #[test]
-fn is_section() {
-    assert!(!Link(Path::new("#struct.Item")).is_section());
-    assert!(!Link(Path::new("./#struct.Item")).is_section());
-    assert!(!Link(Path::new("././#struct.Item")).is_section());
+fn section_parts() {
+    assert_eq!(Link(Path::new("#struct.Item")).section_parts(), None);
+    assert_eq!(Link(Path::new("./#struct.Item")).section_parts(), None);
+    assert_eq!(Link(Path::new("././#struct.Item")).section_parts(), None);
 
-    assert!(!Link(Path::new("../#section")).is_section());
-    assert!(!Link(Path::new("#section/rest")).is_section());
+    assert_eq!(Link(Path::new("../#section")).section_parts(), None);
+    assert_eq!(Link(Path::new("#section/rest")).section_parts(), None);
 
-    assert!(Link(Path::new("#section-a")).is_section());
-    assert!(Link(Path::new("#section-1")).is_section());
-    assert!(Link(Path::new("#section-A")).is_section());
-    assert!(Link(Path::new("#section_a")).is_section());
-    assert!(Link(Path::new("#section.a")).is_section());
-    assert!(Link(Path::new("#Section.a")).is_section());
-    assert!(Link(Path::new("#rection.a")).is_section());
-    assert!(Link(Path::new("#_ection.a")).is_section());
+    assert_eq!(
+        Link(Path::new("#section-a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "section-a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#section-1")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "section-1".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#section-A")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "section-A".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#section_a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "section_a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#section.a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "section.a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#Section.a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "Section.a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#rection.a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "rection.a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#0ection.a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "0ection.a".into()
+            },
+        })
+    );
+    assert_eq!(
+        Link(Path::new("#_ection.a")).section_parts(),
+        Some(LinkParts {
+            start: LinkStart::Local,
+            modules: None,
+            end: LinkEnd::Section {
+                name: "_ection.a".into()
+            },
+        })
+    );
 }
 
 #[test]
@@ -466,4 +694,74 @@ fn is_module() {
     assert!(!Link(Path::new("struct.Type.html#section")).is_module());
     assert!(!Link(Path::new("https://docs.rs/regex/latest/regex/index.html")).is_module());
     assert!(!Link(Path::new("http://example.com")).is_module());
+}
+
+#[test]
+fn disambiguate_from() {
+    use Disambiguator::*;
+
+    assert_eq!(Start("type@"), Disambiguator::from("struct"));
+    assert_eq!(Start("type@"), Disambiguator::from("enum"));
+    assert_eq!(Start("type@"), Disambiguator::from("trait"));
+    assert_eq!(Start("type@"), Disambiguator::from("union"));
+    assert_eq!(Start("type@"), Disambiguator::from("type"));
+
+    assert_eq!(Start("value@"), Disambiguator::from("const"));
+    assert_eq!(Start("value@"), Disambiguator::from("static"));
+    assert_eq!(Start("value@"), Disambiguator::from("value"));
+
+    assert_eq!(Start("macro@"), Disambiguator::from("derive"));
+    assert_eq!(Start("macro@"), Disambiguator::from("attr"));
+
+    assert_eq!(Start("prim@"), Disambiguator::from("primitive"));
+
+    assert_eq!(Start("mod@"), Disambiguator::from("mod"));
+
+    assert_eq!(End("()"), Disambiguator::from("fn"));
+    assert_eq!(End("()"), Disambiguator::from("method"));
+
+    assert_eq!(End("!"), Disambiguator::from("macro"));
+
+    assert_eq!(None, Disambiguator::from("other"));
+    assert_eq!(None, Disambiguator::from("soomething else"));
+}
+
+#[test]
+fn link_parts_dis() {
+    let mut lp = LinkParts {
+        start: LinkStart::Local,
+        modules: None,
+        end: LinkEnd::Section {
+            name: "name".into(),
+        },
+    };
+    assert_eq!(lp.dis(), Disambiguator::Start("mod@"));
+
+    lp.end = LinkEnd::Module {
+        name: "name".into(),
+    };
+    assert_eq!(lp.dis(), Disambiguator::Start("mod@"));
+
+    lp.end = LinkEnd::Assoc(AssociatedItem {
+        dis: Disambiguator::from("fn"),
+        name: "name".into(),
+    });
+    assert_eq!(lp.dis(), Disambiguator::End("()"));
+
+    lp.end = LinkEnd::Item {
+        dis: Disambiguator::from("struct"),
+        name: "name".into(),
+        assoc: None,
+    };
+    assert_eq!(lp.dis(), Disambiguator::Start("type@"));
+
+    lp.end = LinkEnd::Item {
+        dis: Disambiguator::from("struct"),
+        name: "name".into(),
+        assoc: Some(AssociatedItem {
+            dis: Disambiguator::from("fn"),
+            name: "name_2".into(),
+        }),
+    };
+    assert_eq!(lp.dis(), Disambiguator::End("()"));
 }
