@@ -11,6 +11,9 @@ mod options;
 use options::{ConversionOptions, Krate};
 
 mod link_analyser;
+use link_analyser::Candidate;
+
+mod link;
 
 mod file_finder;
 
