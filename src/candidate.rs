@@ -66,7 +66,7 @@ impl<'a> Candidate<'a> {
     ///
     /// When the link is transformed, the function will try to do as little
     /// allocations as possible.
-    pub fn transform(self, ctx: &mut crate::ConversionContext) -> Action {
+    pub fn transform(self, ctx: &crate::ConversionContext) -> Action {
         todo!("Apply transformation");
     }
 }
