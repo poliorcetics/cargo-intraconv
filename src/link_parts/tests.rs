@@ -298,15 +298,7 @@ fn test_favored_docs_rs() {
     let link = Path::new("https://docs.rs/crate/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
-        Some(LinkParts {
-            start: Start::Crate,
-            modules: None,
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Type",
-                added: None,
-            },
-        })
+        None,
     );
 
     let link = Path::new("https://docs.rs");
@@ -363,40 +355,19 @@ fn test_favored_docs_rs() {
     let link = Path::new("https://docs.rs/crate/regex/");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        None,
     );
 
     let link = Path::new("https://docs.rs/crate/regex/latest/");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        None,
     );
 
     let link = Path::new("https://docs.rs/crate/regex/1.4.2");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        None,
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
@@ -428,14 +399,7 @@ fn test_favored_docs_rs() {
     let link = Path::new("https://docs.rs/crate/regex/1.4.2/regex");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        None,
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html");

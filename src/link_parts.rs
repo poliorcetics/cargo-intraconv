@@ -266,18 +266,13 @@ fn favored_docs_rs<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
         .strip_prefix(domain)
         .expect("Stripping domain name");
 
-    let maybe_crate_name = comps.next()?.as_os_str();
+    let crate_name = comps.next()?.as_os_str();
 
-    let (crate_name, untreated) = if maybe_crate_name == "crate" {
-        (
-            comps.next()?.as_os_str(),
-            untreated
-                .strip_prefix(maybe_crate_name)
-                .expect("Stripping 'crate' from path"),
-        )
-    } else {
-        (maybe_crate_name, untreated)
-    };
+    // https://docs.rs/crate/regex/ is NOT a link to the documentation for
+    // the `regex` crate.
+    if crate_name == "crate" {
+        return None;
+    }
 
     let crate_only_link_parts = || {
         let start = Start::Empty;
