@@ -198,6 +198,24 @@ impl ConversionContext {
         }
     }
 
+    /// The type currently active or an empty string.
+    pub fn current_type_block(&self) -> &str {
+        match &self.curr_type_block {
+            Some(s) => &s,
+            None => "",
+        }
+    }
+
+    /// Reference to the options for the context.
+    pub fn options(&self) -> &crate::ConversionOptions {
+        &self.options
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_current_type_block(&mut self, ctb: String) {
+        self.curr_type_block = Some(ctb);
+    }
+
     /// Iterates over a `BufRead` reader to find the links and transform them.
     ///
     /// This function will make only one pass over the entire buffer,
