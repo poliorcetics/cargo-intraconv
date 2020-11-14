@@ -26,10 +26,7 @@ pub enum Action {
 impl Action {
     /// Check if the current action is `Action::Unchanged`.
     pub fn is_unchanged(&self) -> bool {
-        match self {
-            Action::Unchanged { line: _ } => true,
-            _ => false,
-        }
+        matches!(self, Action::Unchanged { line: _ })
     }
 
     /// Returns the new line to add.

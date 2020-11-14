@@ -61,10 +61,7 @@ impl PartialEq<Action> for String {
 
 impl Action {
     fn is_deleted(&self) -> bool {
-        match self {
-            Self::Deleted { line: _, pos: _ } => true,
-            _ => false,
-        }
+        matches!(self, Self::Deleted { line: _, pos: _ })
     }
 }
 
@@ -113,7 +110,7 @@ fn new() {
     );
     assert_ne!(
         ConversionContext::with_options(ConversionOptions {
-            krate: krate.clone(),
+            krate: krate,
             disambiguate: false,
             favored_links: false
         }),
@@ -146,7 +143,7 @@ fn new() {
     );
     assert_ne!(
         ConversionContext::with_options(ConversionOptions {
-            krate: not_krate.clone(),
+            krate: not_krate,
             disambiguate: false,
             favored_links: false
         }),

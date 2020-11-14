@@ -79,9 +79,9 @@ lazy_static! {
     )).unwrap();
 }
 
-pub const RUST_IDENTIFIER: &'static str = r"(?:[a-zA-Z_][a-zA-Z0-9_]*)";
+pub const RUST_IDENTIFIER: &str = r"(?:[a-zA-Z_][a-zA-Z0-9_]*)";
 
-pub const HTML_SECTION: &'static str = r"(?:#[a-zA-Z0-9_\-\.]+)";
+pub const HTML_SECTION: &str = r"(?:#[a-zA-Z0-9_\-\.]+)";
 
 #[cfg(test)]
 lazy_static::lazy_static! {

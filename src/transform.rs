@@ -49,7 +49,7 @@ impl ConversionContext {
 
     /// The type currently active or an empty string.
     pub fn current_type_block(&self) -> Option<&str> {
-        self.curr_type_block.as_ref().map(|x| x.as_str())
+        self.curr_type_block.as_deref()
     }
 
     /// Reference to the options for the context.
@@ -190,7 +190,7 @@ where
                 let mut s = captures.name("spaces").unwrap().as_str().to_string();
                 s.reserve(1);
 
-                if let Some(_) = captures.name("parenthese") {
+                if captures.name("parenthese").is_some() {
                     s.push(')');
                 } else {
                     s.push('}');
