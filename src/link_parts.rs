@@ -33,7 +33,7 @@ impl<'a> LinkParts<'a> {
                     _ => false,
                 };
                 if needs_type_block {
-                    result.push_str(ctx.current_type_block())
+                    result.push_str(ctx.current_type_block().unwrap_or("Self"))
                 }
             }
             Start::Crate => result.push_str("crate"),
@@ -207,15 +207,6 @@ enum AssocOrSection<'a> {
     Section(Section<'a>),
 }
 
-impl<'a> AssocOrSection<'a> {
-    fn dis(&self) -> Disambiguator {
-        match self {
-            Self::Section(_) => Disambiguator::from("mod"),
-            Self::Assoc(a) => a.dis,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct AssociatedItem<'a> {
     dis: Disambiguator,
@@ -337,7 +328,14 @@ fn favored_doc_rust_lang_org<'a>(path: &'a Path, krate: &Krate) -> Option<LinkPa
     // Ensure the channel can be converted to a valid "&str".
     let channel_or_crate = comps.next()?.as_os_str();
 
-    const CRATES: [&str; 5] = ["std", "alloc", "core", "test", "proc_macro"];
+    const CRATES: [&str; 6] = [
+        "std",
+        "alloc",
+        "core",
+        "test",
+        "proc_macro",
+        "nightly-rustc",
+    ];
     const CHANNELS: [&str; 3] = ["nightly", "beta", "stable"];
     lazy_static::lazy_static! {
         static ref VERSION_REGEX: Regex = Regex::new(r"1\.\d+\.\d+").unwrap();
