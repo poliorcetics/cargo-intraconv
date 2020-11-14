@@ -489,26 +489,32 @@ fn section_and_assoc_add_self_when_type_block_is_empty() {
 #[test]
 fn non_line() {
     let non_line_lines = [
-        "let a = b;\n",
-        "if a == b { let c = Type { toto: titi }; }\n",
-        "/// struct X;\n",
-        "//! struct X;\n",
-        "// struct X;\n",
-        "  // trait T {}\n",
-        "\n",
-        "'\n'.into()\n",
-        "struct A(());\n",
-        "/// [link]: https://toto.com\n",
+        "let a = b;",
+        "if a == b { let c = Type { toto: titi }; }",
+        "/// struct X;",
+        "//! struct X;",
+        "// struct X;",
+        "  // trait T {}",
+        "",
+        "'\n'.into()",
+        "struct A(());",
+        "/// [link]: https://toto.com",
     ];
 
     let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
     for &line in &non_line_lines {
-        assert_eq!(line, ctx.transform_line(line.into()));
+        assert_eq!(
+            line,
+            ctx.transform_line(line.into()).as_new_line().trim_end()
+        );
     }
 
     let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
     for &line in &non_line_lines {
-        assert_eq!(line, ctx.transform_line(line.into()));
+        assert_eq!(
+            line,
+            ctx.transform_line(line.into()).as_new_line().trim_end()
+        );
     }
 }
 
