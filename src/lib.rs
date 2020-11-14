@@ -246,7 +246,6 @@ fn run_for_file(path: &Path, args: &Args) {
         Ok(file) => file,
         Err(err) => {
             eprintln!("Failed to write to '{}': {}", &path_display, err);
-            return;
         }
     };
 }

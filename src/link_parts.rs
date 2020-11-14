@@ -28,10 +28,7 @@ impl<'a> LinkParts<'a> {
         match self.start {
             Start::Empty => (),
             Start::Local => {
-                let needs_type_block = match (&self.end, self.modules) {
-                    (End::Assoc(_), None) => true,
-                    _ => false,
-                };
+                let needs_type_block = matches!((&self.end, self.modules), (End::Assoc(_), None));
                 if needs_type_block {
                     result.push_str(ctx.current_type_block().unwrap_or("Self"))
                 }
@@ -114,14 +111,11 @@ impl<'a> LinkParts<'a> {
                 result.insert_str(0, s);
             }
         } else if let Disambiguator::Suffix(s) = self.dis() {
-            let disambiguation_already_done = match &self.end {
-                End::Item {
-                    dis: _,
-                    name: _,
-                    added: Some(AssocOrSection::Section(_)),
-                } => true,
-                _ => false,
-            };
+            let disambiguation_already_done = matches!(&self.end, End::Item {
+                dis: _,
+                name: _,
+                added: Some(AssocOrSection::Section(_)),
+            });
 
             if !disambiguation_already_done {
                 result.push_str(s);
