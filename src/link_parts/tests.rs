@@ -667,7 +667,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#section-a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "section-a" }),
         })
@@ -675,7 +675,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#section-1"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "section-1" }),
         })
@@ -683,7 +683,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#section-A"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "section-A" }),
         })
@@ -691,7 +691,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#section_a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "section_a" }),
         })
@@ -699,7 +699,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#section.a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "section.a" }),
         })
@@ -707,7 +707,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#Section.a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "Section.a" }),
         })
@@ -715,7 +715,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#rection.a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "rection.a" }),
         })
@@ -723,7 +723,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#0ection.a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "0ection.a" }),
         })
@@ -731,7 +731,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(Path::new("#_ection.a"), &OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
-            start: Start::Empty,
+            start: Start::Local,
             modules: None,
             end: End::Section(Section { name: "_ection.a" }),
         })
@@ -1325,21 +1325,827 @@ fn link_parts_dis() {
     lp.end = End::Item {
         dis: Empty,
         name: "Item",
-        added: None
+        added: None,
     };
     assert_eq!(Empty, lp.dis());
 
     lp.end = End::Item {
         dis: Prefix("type@"),
         name: "Item",
-        added: None
+        added: None,
     };
     assert_eq!(Prefix("type@"), lp.dis());
 
     lp.end = End::Item {
         dis: Suffix("()"),
         name: "Item",
-        added: None
+        added: None,
     };
     assert_eq!(Suffix("()"), lp.dis());
 }
+
+#[test]
+fn test_link_parts() {
+    const INVALID_FAVORED: &[&str] = &[
+        "https://example.com",
+        "https://docs.rs",
+        "https://doc.rust-lang.org/",
+        "https://doc.rust-lang.org/other",
+        "https://doc.rust-lang.org/nightly/nightly-rustc",
+        "https://docs.rs/krate-name/1.2.3/krate/struct.Type.html",
+    ];
+
+    for &invalid in INVALID_FAVORED {
+        let link = Path::new(invalid);
+        assert_eq!(
+            link_parts(link, &OPTS_KRATE_DIS_NO_FAV).unwrap_err(),
+            link.as_os_str()
+        );
+    }
+
+    const VALID_FAVORED: &[&str] = &[
+        // docs.rs - Krate
+        "https://docs.rs/krate-name/1.2.3/krate/struct.Type.html",
+        // docs.rs - Regex
+        "https://docs.rs/regex/",
+        "https://docs.rs/regex/1.4.2",
+        "https://docs.rs/regex/1.4.2/regex",
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html",
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples",
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match",
+        "https://docs.rs/regex/1.4.2/regex/bytes/index.html",
+        "https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax",
+        "https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples",
+        "https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match",
+        // doc.rust-lang.org - short
+        "https://doc.rust-lang.org/std",
+        "https://doc.rust-lang.org/alloc",
+        "https://doc.rust-lang.org/core",
+        "https://doc.rust-lang.org/test",
+        "https://doc.rust-lang.org/proc_macro",
+        "https://doc.rust-lang.org/std/string/index.html",
+        "https://doc.rust-lang.org/std/string/struct.String.html",
+        "https://doc.rust-lang.org/std/string/struct.String.html#examples",
+        "https://doc.rust-lang.org/std/string/struct.String.html#method.drain",
+        // doc.rust-lang.org - long
+        "https://doc.rust-lang.org/nightly/std",
+        "https://doc.rust-lang.org/nightly/alloc",
+        "https://doc.rust-lang.org/nightly/core",
+        "https://doc.rust-lang.org/nightly/test",
+        "https://doc.rust-lang.org/nightly/proc_macro",
+        "https://doc.rust-lang.org/nightly/std/string/index.html",
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html",
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples",
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain",
+    ];
+
+    for &valid in VALID_FAVORED {
+        let link = Path::new(valid);
+        assert_eq!(
+            link_parts(link, &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            favored_parts(link, &OPTS_KRATE_DIS_AND_FAV).unwrap()
+        )
+    }
+
+    const VALID_ASSOCIATED: &[&str] = &["#struct.Item", "./#struct.Item", "././#struct.Item"];
+
+    for &valid in VALID_ASSOCIATED {
+        let link = Path::new(valid);
+        assert_eq!(
+            link_parts(link, &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            associated_item_parts(link).unwrap()
+        )
+    }
+
+    const VALID_SECTION: &[&str] = &[
+        "#section-a",
+        "#section-1",
+        "#section-A",
+        "#section_a",
+        "#section.a",
+        "#Section.a",
+        "#rection.a",
+        "#0ection.a",
+        "#_ection.a",
+        "krate/#section",
+        "../krate/#section",
+        "mod1/#section",
+        "mod1/mod2/#section",
+        "../../mod1/mod2/#section",
+    ];
+
+    for &valid in VALID_SECTION {
+        let link = Path::new(valid);
+        assert_eq!(
+            link_parts(link, &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            section_parts(link, &OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
+        )
+    }
+
+    let mut rust_item = String::with_capacity(40);
+
+    for &item in crate::ALL_ITEM_TYPES {
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html#method.call");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+
+        rust_item.clear();
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html#section-name");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+
+        rust_item.clear();
+        rust_item.push_str("./");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+
+        rust_item.clear();
+        rust_item.push_str("../");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+
+        rust_item.clear();
+        rust_item.push_str("../mod1/mod2/");
+        rust_item.push_str(item);
+        rust_item.push_str(".Type.html");
+        assert_eq!(
+            link_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
+        );
+    }
+
+    const VALID_MODULES: &[&str] = &[
+        "regex",
+        "../../regex",
+        "../../mod1/mod2/regex",
+        "mod1/mod2",
+        "../../krate/mod1/mod2/regex",
+        "mod1/mod2",
+        "regex/bytes/index.html",
+        "regex/bytes/index.html#syntax",
+    ];
+
+    for &valid in VALID_MODULES {
+        let link = Path::new(valid);
+        assert_eq!(
+            link_parts(link, &OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            module_parts(link, &OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
+        );
+    }
+}
+
+#[test]
+fn test_transform() {
+    // Both contexts can transform favored links, for a context that cannot
+    // see `test_link_parts`.
+    let mut ctx_dis = crate::ConversionContext::with_options(OPTS_KRATE_DIS_AND_FAV.clone());
+    let mut ctx_no_dis = crate::ConversionContext::with_options(OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+
+    ctx_dis.set_current_type_block("Block".into());
+    ctx_no_dis.set_current_type_block("Block".into());
+
+    for &(value, with_dis, without_dis) in TEST_TRANSFORM_VALUES {
+        let parts_dis = link_parts(Path::new(value), ctx_dis.options()).unwrap();
+        let parts_no_dis = link_parts(Path::new(value), ctx_no_dis.options()).unwrap();
+        let transform_dis = parts_dis.clone().transform(&ctx_dis);
+        let transform_no_dis = parts_no_dis.clone().transform(&ctx_no_dis);
+        assert_eq!(
+            transform_dis, with_dis,
+            "\n--> Value: {:#?}, parts: {:#?}",
+            value, parts_dis
+        );
+        assert_eq!(
+            transform_no_dis, without_dis,
+            "\n--> Value: {:#?}, parts: {:#?}",
+            value, parts_no_dis
+        );
+    }
+}
+
+const TEST_TRANSFORM_VALUES: &[(&str, &str, &str)] = &[
+    (
+        "https://docs.rs/krate-name/1.2.3/krate/struct.Type.html",
+        "type@crate::Type",
+        "crate::Type",
+    ),
+    ("https://docs.rs/regex/", "mod@regex", "regex"),
+    ("https://docs.rs/regex/1.4.2", "mod@regex", "regex"),
+    ("https://docs.rs/regex/1.4.2/regex", "mod@regex", "regex"),
+    (
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html",
+        "type@regex::Regex",
+        "regex::Regex",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples",
+        "type@regex::Regex#examples",
+        "regex::Regex#examples",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match",
+        "regex::Regex::is_match()",
+        "regex::Regex::is_match()",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/bytes/index.html",
+        "mod@regex::bytes",
+        "regex::bytes",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax",
+        "regex::bytes#syntax",
+        "regex::bytes#syntax",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples",
+        "type@regex::bytes::Regex#examples",
+        "regex::bytes::Regex#examples",
+    ),
+    (
+        "https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match",
+        "regex::bytes::Regex::is_match()",
+        "regex::bytes::Regex::is_match()",
+    ),
+    ("https://doc.rust-lang.org/std", "mod@std", "std"),
+    ("https://doc.rust-lang.org/alloc", "mod@alloc", "alloc"),
+    ("https://doc.rust-lang.org/core", "mod@core", "core"),
+    ("https://doc.rust-lang.org/test", "mod@test", "test"),
+    (
+        "https://doc.rust-lang.org/proc_macro",
+        "mod@proc_macro",
+        "proc_macro",
+    ),
+    (
+        "https://doc.rust-lang.org/std/string/index.html",
+        "mod@std::string",
+        "std::string",
+    ),
+    (
+        "https://doc.rust-lang.org/std/string/struct.String.html",
+        "type@std::string::String",
+        "std::string::String",
+    ),
+    (
+        "https://doc.rust-lang.org/std/string/struct.String.html#examples",
+        "type@std::string::String#examples",
+        "std::string::String#examples",
+    ),
+    (
+        "https://doc.rust-lang.org/std/string/struct.String.html#method.drain",
+        "std::string::String::drain()",
+        "std::string::String::drain()",
+    ),
+    ("https://doc.rust-lang.org/nightly/std", "mod@std", "std"),
+    (
+        "https://doc.rust-lang.org/nightly/alloc",
+        "mod@alloc",
+        "alloc",
+    ),
+    ("https://doc.rust-lang.org/nightly/core", "mod@core", "core"),
+    ("https://doc.rust-lang.org/nightly/test", "mod@test", "test"),
+    (
+        "https://doc.rust-lang.org/nightly/proc_macro",
+        "mod@proc_macro",
+        "proc_macro",
+    ),
+    (
+        "https://doc.rust-lang.org/nightly/std/string/index.html",
+        "mod@std::string",
+        "std::string",
+    ),
+    (
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html",
+        "type@std::string::String",
+        "std::string::String",
+    ),
+    (
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples",
+        "type@std::string::String#examples",
+        "std::string::String#examples",
+    ),
+    (
+        "https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain",
+        "std::string::String::drain()",
+        "std::string::String::drain()",
+    ),
+    ("#struct.Item", "type@Block::Item", "Block::Item"),
+    ("./#struct.Item", "type@Block::Item", "Block::Item"),
+    ("././#struct.Item", "type@Block::Item", "Block::Item"),
+    ("#section-a", "Block#section-a", "Block#section-a"),
+    ("#section-1", "Block#section-1", "Block#section-1"),
+    ("#section-A", "Block#section-A", "Block#section-A"),
+    ("#section_a", "Block#section_a", "Block#section_a"),
+    ("#section.a", "Block#section.a", "Block#section.a"),
+    ("#Section.a", "Block#Section.a", "Block#Section.a"),
+    ("#rection.a", "Block#rection.a", "Block#rection.a"),
+    ("#0ection.a", "Block#0ection.a", "Block#0ection.a"),
+    ("#_ection.a", "Block#_ection.a", "Block#_ection.a"),
+    ("krate/#section", "crate#section", "crate#section"),
+    ("../krate/#section", "crate#section", "crate#section"),
+    ("mod1/#section", "mod1#section", "mod1#section"),
+    (
+        "mod1/mod2/#section",
+        "mod1::mod2#section",
+        "mod1::mod2#section",
+    ),
+    (
+        "../../mod1/mod2/#section",
+        "super::super::mod1::mod2#section",
+        "super::super::mod1::mod2#section",
+    ),
+    ("associatedconstant.Type.html", "Type", "Type"),
+    (
+        "associatedconstant.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "associatedconstant.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./associatedconstant.Type.html", "Type", "Type"),
+    (
+        "../associatedconstant.Type.html",
+        "super::Type",
+        "super::Type",
+    ),
+    (
+        "../mod1/mod2/associatedconstant.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("associatedtype.Type.html", "Type", "Type"),
+    (
+        "associatedtype.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "associatedtype.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./associatedtype.Type.html", "Type", "Type"),
+    ("../associatedtype.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/associatedtype.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("attr.Type.html", "macro@Type", "Type"),
+    ("attr.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "attr.Type.html#section-name",
+        "macro@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./attr.Type.html", "macro@Type", "Type"),
+    ("../attr.Type.html", "macro@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/attr.Type.html",
+        "macro@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("constant.Type.html", "Type", "Type"),
+    (
+        "constant.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "constant.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./constant.Type.html", "Type", "Type"),
+    ("../constant.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/constant.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("derive.Type.html", "macro@Type", "Type"),
+    (
+        "derive.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "derive.Type.html#section-name",
+        "macro@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./derive.Type.html", "macro@Type", "Type"),
+    ("../derive.Type.html", "macro@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/derive.Type.html",
+        "macro@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("enum.Type.html", "type@Type", "Type"),
+    ("enum.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "enum.Type.html#section-name",
+        "type@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./enum.Type.html", "type@Type", "Type"),
+    ("../enum.Type.html", "type@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/enum.Type.html",
+        "type@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("externcrate.Type.html", "Type", "Type"),
+    (
+        "externcrate.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "externcrate.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./externcrate.Type.html", "Type", "Type"),
+    ("../externcrate.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/externcrate.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("fn.Type.html", "Type()", "Type()"),
+    ("fn.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "fn.Type.html#section-name",
+        "Type()#section-name",
+        "Type()#section-name",
+    ),
+    ("./fn.Type.html", "Type()", "Type()"),
+    ("../fn.Type.html", "super::Type()", "super::Type()"),
+    (
+        "../mod1/mod2/fn.Type.html",
+        "super::mod1::mod2::Type()",
+        "super::mod1::mod2::Type()",
+    ),
+    ("foreigntype.Type.html", "Type", "Type"),
+    (
+        "foreigntype.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "foreigntype.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./foreigntype.Type.html", "Type", "Type"),
+    ("../foreigntype.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/foreigntype.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("impl.Type.html", "Type", "Type"),
+    ("impl.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "impl.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./impl.Type.html", "Type", "Type"),
+    ("../impl.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/impl.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("import.Type.html", "Type", "Type"),
+    (
+        "import.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "import.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./import.Type.html", "Type", "Type"),
+    ("../import.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/import.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("keyword.Type.html", "Type", "Type"),
+    (
+        "keyword.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "keyword.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./keyword.Type.html", "Type", "Type"),
+    ("../keyword.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/keyword.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("macro.Type.html", "Type!", "Type!"),
+    (
+        "macro.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "macro.Type.html#section-name",
+        "Type!#section-name",
+        "Type!#section-name",
+    ),
+    ("./macro.Type.html", "Type!", "Type!"),
+    ("../macro.Type.html", "super::Type!", "super::Type!"),
+    (
+        "../mod1/mod2/macro.Type.html",
+        "super::mod1::mod2::Type!",
+        "super::mod1::mod2::Type!",
+    ),
+    ("method.Type.html", "Type()", "Type()"),
+    (
+        "method.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "method.Type.html#section-name",
+        "Type()#section-name",
+        "Type()#section-name",
+    ),
+    ("./method.Type.html", "Type()", "Type()"),
+    ("../method.Type.html", "super::Type()", "super::Type()"),
+    (
+        "../mod1/mod2/method.Type.html",
+        "super::mod1::mod2::Type()",
+        "super::mod1::mod2::Type()",
+    ),
+    ("mod.Type.html", "mod@Type", "Type"),
+    ("mod.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "mod.Type.html#section-name",
+        "mod@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./mod.Type.html", "mod@Type", "Type"),
+    ("../mod.Type.html", "mod@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/mod.Type.html",
+        "mod@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("opaque.Type.html", "Type", "Type"),
+    (
+        "opaque.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "opaque.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./opaque.Type.html", "Type", "Type"),
+    ("../opaque.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/opaque.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("primitive.Type.html", "prim@Type", "Type"),
+    (
+        "primitive.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "primitive.Type.html#section-name",
+        "prim@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./primitive.Type.html", "prim@Type", "Type"),
+    ("../primitive.Type.html", "prim@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/primitive.Type.html",
+        "prim@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("static.Type.html", "value@Type", "Type"),
+    (
+        "static.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "static.Type.html#section-name",
+        "value@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./static.Type.html", "value@Type", "Type"),
+    ("../static.Type.html", "value@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/static.Type.html",
+        "value@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("struct.Type.html", "type@Type", "Type"),
+    (
+        "struct.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "struct.Type.html#section-name",
+        "type@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./struct.Type.html", "type@Type", "Type"),
+    ("../struct.Type.html", "type@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/struct.Type.html",
+        "type@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("structfield.Type.html", "Type", "Type"),
+    (
+        "structfield.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "structfield.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./structfield.Type.html", "Type", "Type"),
+    ("../structfield.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/structfield.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("trait.Type.html", "type@Type", "Type"),
+    (
+        "trait.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "trait.Type.html#section-name",
+        "type@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./trait.Type.html", "type@Type", "Type"),
+    ("../trait.Type.html", "type@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/trait.Type.html",
+        "type@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("traitalias.Type.html", "Type", "Type"),
+    (
+        "traitalias.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "traitalias.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./traitalias.Type.html", "Type", "Type"),
+    ("../traitalias.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/traitalias.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("tymethod.Type.html", "Type", "Type"),
+    (
+        "tymethod.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "tymethod.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./tymethod.Type.html", "Type", "Type"),
+    ("../tymethod.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/tymethod.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("type.Type.html", "type@Type", "Type"),
+    ("type.Type.html#method.call", "Type::call()", "Type::call()"),
+    (
+        "type.Type.html#section-name",
+        "type@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./type.Type.html", "type@Type", "Type"),
+    ("../type.Type.html", "type@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/type.Type.html",
+        "type@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("union.Type.html", "type@Type", "Type"),
+    (
+        "union.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "union.Type.html#section-name",
+        "type@Type#section-name",
+        "Type#section-name",
+    ),
+    ("./union.Type.html", "type@Type", "Type"),
+    ("../union.Type.html", "type@super::Type", "super::Type"),
+    (
+        "../mod1/mod2/union.Type.html",
+        "type@super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("variant.Type.html", "Type", "Type"),
+    (
+        "variant.Type.html#method.call",
+        "Type::call()",
+        "Type::call()",
+    ),
+    (
+        "variant.Type.html#section-name",
+        "Type#section-name",
+        "Type#section-name",
+    ),
+    ("./variant.Type.html", "Type", "Type"),
+    ("../variant.Type.html", "super::Type", "super::Type"),
+    (
+        "../mod1/mod2/variant.Type.html",
+        "super::mod1::mod2::Type",
+        "super::mod1::mod2::Type",
+    ),
+    ("regex", "mod@regex", "regex"),
+    (
+        "../../regex",
+        "mod@super::super::regex",
+        "super::super::regex",
+    ),
+    (
+        "../../mod1/mod2/regex",
+        "mod@super::super::mod1::mod2::regex",
+        "super::super::mod1::mod2::regex",
+    ),
+    ("mod1/mod2", "mod@mod1::mod2", "mod1::mod2"),
+    (
+        "../../krate/mod1/mod2/regex",
+        "mod@crate::mod1::mod2::regex",
+        "crate::mod1::mod2::regex",
+    ),
+    ("mod1/mod2", "mod@mod1::mod2", "mod1::mod2"),
+    ("regex/bytes/index.html", "mod@regex::bytes", "regex::bytes"),
+    (
+        "regex/bytes/index.html#syntax",
+        "regex::bytes#syntax",
+        "regex::bytes#syntax",
+    ),
+];

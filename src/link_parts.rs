@@ -22,6 +22,115 @@ pub struct LinkParts<'a> {
 }
 
 impl<'a> LinkParts<'a> {
+    pub fn transform(self, ctx: &crate::ConversionContext) -> String {
+        let mut result = String::with_capacity(60);
+
+        match self.start {
+            Start::Empty => (),
+            Start::Local => {
+                let needs_type_block = match (&self.end, self.modules) {
+                    (End::Section(_), None) | (End::Assoc(_), None) => true,
+                    _ => false,
+                };
+                if needs_type_block {
+                    result.push_str(ctx.current_type_block())
+                }
+            }
+            Start::Crate => result.push_str("crate"),
+            Start::Mod(s) => result.push_str(s),
+            Start::Supers(n) => {
+                for _ in 0..(n - 1) {
+                    result.push_str("super::");
+                }
+                result.push_str("super");
+            }
+        }
+
+        for c in self.modules.unwrap_or(Path::new("")).components() {
+            let c = c.as_os_str().to_str().expect("Has been checked already");
+            if !result.is_empty() {
+                result.push_str("::");
+            }
+            result.push_str(c);
+        }
+
+        match &self.end {
+            End::Section(Section { name }) => {
+                result.push('#');
+                result.push_str(name);
+            }
+            End::Assoc(AssociatedItem { dis: _, name }) => {
+                if !result.is_empty() {
+                    result.push_str("::");
+                }
+                result.push_str(name);
+            }
+            End::Module { name, section } => {
+                if !result.is_empty() {
+                    result.push_str("::");
+                }
+
+                result.push_str(name.as_ref());
+
+                if let Some(Section { name }) = section {
+                    result.push('#');
+                    result.push_str(name);
+                }
+            }
+            End::Item {
+                dis: _,
+                name,
+                added,
+            } => {
+                if !result.is_empty() {
+                    result.push_str("::");
+                }
+
+                result.push_str(name);
+
+                match added {
+                    None => (),
+                    Some(AssocOrSection::Section(Section { name })) => {
+                        // Put the suffix disambiguator before the section when
+                        // there is one.
+                        match self.dis() {
+                            Disambiguator::Suffix(s) => result.push_str(s),
+                            _ => (),
+                        }
+
+                        result.push('#');
+                        result.push_str(name);
+                    }
+                    Some(AssocOrSection::Assoc(AssociatedItem { dis: _, name })) => {
+                        result.push_str("::");
+                        result.push_str(name);
+                    }
+                }
+            }
+        }
+
+        if let Disambiguator::Prefix(s) = self.dis() {
+            if ctx.options().disambiguate {
+                result.insert_str(0, s);
+            }
+        } else if let Disambiguator::Suffix(s) = self.dis() {
+            let disambiguation_already_done = match &self.end {
+                End::Item {
+                    dis: _,
+                    name: _,
+                    added: Some(AssocOrSection::Section(_)),
+                } => true,
+                _ => false,
+            };
+
+            if !disambiguation_already_done {
+                result.push_str(s);
+            }
+        }
+
+        result
+    }
+
     fn dis(&self) -> Disambiguator {
         match self.end {
             // NOTE: maybe this could use a context to see if it should point
@@ -330,8 +439,16 @@ fn section_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
 
     let end = End::Section(Section { name });
 
-    let untreated = path.parent().unwrap_or(Path::new(""));
-    start_and_middle(untreated, end, krate)
+    match path.parent() {
+        Some(untreated) if !untreated.as_os_str().is_empty() => {
+            start_and_middle(untreated, end, krate)
+        }
+        _ => Some(LinkParts {
+            start: Start::Local,
+            modules: None,
+            end,
+        }),
+    }
 }
 
 fn item_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
@@ -470,11 +587,7 @@ fn module_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
     start_and_middle(untreated, end, krate)
 }
 
-fn start_and_middle<'a>(
-    untreated: &'a Path,
-    end: End<'a>,
-    krate: &Krate,
-) -> Option<LinkParts<'a>> {
+fn start_and_middle<'a>(untreated: &'a Path, end: End<'a>, krate: &Krate) -> Option<LinkParts<'a>> {
     if untreated.components().next().is_none() {
         return Some(LinkParts {
             start: Start::Empty,
