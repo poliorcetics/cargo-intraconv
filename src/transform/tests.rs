@@ -473,13 +473,19 @@ fn delete_local_links() {
 }
 
 #[test]
-fn section_and_assoc_add_self_when_type_block_is_empty() {
+fn section_add_nothing() {
     let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
     assert_eq!(
-        "[name]: Self#section\n",
+        "[name]: #section\n",
         ctx.transform_line("[name]: #section".into())
     );
+}
+
+#[test]
+fn assoc_add_self_when_type_block_is_empty() {
+    let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
+
     assert_eq!(
         "[name]: Self::drain()\n",
         ctx.transform_line("[name]: #method.drain".into())

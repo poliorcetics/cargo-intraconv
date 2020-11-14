@@ -1824,7 +1824,7 @@ fn test_link_parts() {
 }
 
 #[test]
-fn test_transform() {
+fn test_link_parts_transform() {
     use crate::ConversionContext;
 
     fn check_transform(value: &str, target: &str, ctx: &ConversionContext) {
@@ -1846,8 +1846,8 @@ fn test_transform() {
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.
-    check_transform("#section", "Self#section", &ctx_dis);
-    check_transform("#section", "Self#section", &ctx_no_dis);
+    check_transform("#section", "#section", &ctx_dis);
+    check_transform("#section", "#section", &ctx_no_dis);
 
     check_transform("#method.drain", "Self::drain()", &ctx_dis);
     check_transform("#method.drain", "Self::drain()", &ctx_no_dis);
@@ -1970,15 +1970,15 @@ const TEST_TRANSFORM_VALUES: &[(&str, &str, &str)] = &[
     ("#struct.Item", "type@Block::Item", "Block::Item"),
     ("./#struct.Item", "type@Block::Item", "Block::Item"),
     ("././#struct.Item", "type@Block::Item", "Block::Item"),
-    ("#section-a", "Block#section-a", "Block#section-a"),
-    ("#section-1", "Block#section-1", "Block#section-1"),
-    ("#section-A", "Block#section-A", "Block#section-A"),
-    ("#section_a", "Block#section_a", "Block#section_a"),
-    ("#section.a", "Block#section.a", "Block#section.a"),
-    ("#Section.a", "Block#Section.a", "Block#Section.a"),
-    ("#rection.a", "Block#rection.a", "Block#rection.a"),
-    ("#0ection.a", "Block#0ection.a", "Block#0ection.a"),
-    ("#_ection.a", "Block#_ection.a", "Block#_ection.a"),
+    ("#section-a", "#section-a", "#section-a"),
+    ("#section-1", "#section-1", "#section-1"),
+    ("#section-A", "#section-A", "#section-A"),
+    ("#section_a", "#section_a", "#section_a"),
+    ("#section.a", "#section.a", "#section.a"),
+    ("#Section.a", "#Section.a", "#Section.a"),
+    ("#rection.a", "#rection.a", "#rection.a"),
+    ("#0ection.a", "#0ection.a", "#0ection.a"),
+    ("#_ection.a", "#_ection.a", "#_ection.a"),
     ("krate/#section", "crate#section", "crate#section"),
     ("../krate/#section", "crate#section", "crate#section"),
     ("mod1/#section", "mod1#section", "mod1#section"),

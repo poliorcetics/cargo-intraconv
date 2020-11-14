@@ -29,7 +29,7 @@ impl<'a> LinkParts<'a> {
             Start::Empty => (),
             Start::Local => {
                 let needs_type_block = match (&self.end, self.modules) {
-                    (End::Section(_), None) | (End::Assoc(_), None) => true,
+                    (End::Assoc(_), None) => true,
                     _ => false,
                 };
                 if needs_type_block {
@@ -341,7 +341,8 @@ fn favored_docs_rs<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
     };
 
     match comps.next().map(|x| x.as_os_str()) {
-        Some(_) => (),        None => return crate_only_link_parts(),
+        Some(_) => (),
+        None => return crate_only_link_parts(),
     }
 
     let untreated = untreated

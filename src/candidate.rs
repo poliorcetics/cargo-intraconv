@@ -204,8 +204,8 @@ fn candidate_transform() {
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.
-    check_transform("[`Link`]: #section", "[`Link`]: Self#section", &ctx_dis);
-    check_transform("[`Link`]: #section", "[`Link`]: Self#section", &ctx_no_dis);
+    check_transform("[`Link`]: #section", "[`Link`]: #section", &ctx_dis);
+    check_transform("[`Link`]: #section", "[`Link`]: #section", &ctx_no_dis);
 
     check_transform(
         "[`Link`]: #method.drain",
@@ -391,48 +391,48 @@ const VALID_LINKS: &[(&str, &str, &str)] = &[
     ),
     (
         "[`Link`]: #section-a",
-        "[`Link`]: Block#section-a",
-        "[`Link`]: Block#section-a",
+        "[`Link`]: #section-a",
+        "[`Link`]: #section-a",
     ),
     (
         "[`Link`]: #section-1",
-        "[`Link`]: Block#section-1",
-        "[`Link`]: Block#section-1",
+        "[`Link`]: #section-1",
+        "[`Link`]: #section-1",
     ),
     (
         "[`Link`]: #section-A",
-        "[`Link`]: Block#section-A",
-        "[`Link`]: Block#section-A",
+        "[`Link`]: #section-A",
+        "[`Link`]: #section-A",
     ),
     (
         "[`Link`]: #section_a",
-        "[`Link`]: Block#section_a",
-        "[`Link`]: Block#section_a",
+        "[`Link`]: #section_a",
+        "[`Link`]: #section_a",
     ),
     (
         "[`Link`]: #section.a",
-        "[`Link`]: Block#section.a",
-        "[`Link`]: Block#section.a",
+        "[`Link`]: #section.a",
+        "[`Link`]: #section.a",
     ),
     (
         "[`Link`]: #Section.a",
-        "[`Link`]: Block#Section.a",
-        "[`Link`]: Block#Section.a",
+        "[`Link`]: #Section.a",
+        "[`Link`]: #Section.a",
     ),
     (
         "[`Link`]: #rection.a",
-        "[`Link`]: Block#rection.a",
-        "[`Link`]: Block#rection.a",
+        "[`Link`]: #rection.a",
+        "[`Link`]: #rection.a",
     ),
     (
         "[`Link`]: #0ection.a",
-        "[`Link`]: Block#0ection.a",
-        "[`Link`]: Block#0ection.a",
+        "[`Link`]: #0ection.a",
+        "[`Link`]: #0ection.a",
     ),
     (
         "[`Link`]: #_ection.a",
-        "[`Link`]: Block#_ection.a",
-        "[`Link`]: Block#_ection.a",
+        "[`Link`]: #_ection.a",
+        "[`Link`]: #_ection.a",
     ),
     (
         "[`Link`]: krate/#section",
