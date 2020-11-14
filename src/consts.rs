@@ -39,13 +39,22 @@ lazy_static! {
     /// `/// [name]: module_or_type`.
     pub static ref LINK_TO_TREAT_LONG: Regex = Regex::new(concat!(
         r"^",
-        r"(?P<header>\s*(?://[!/]\s*)?\[.*?\]:\s*)",
+        r"(?P<header>\s*(?://[!/]\s*)?\[.+?\]:\s*)",
         // The special case for 'http(s):' is to avoid catching links with a
         // '::' by putting ':' in the regex: they are already intra-doc links.
         r"(?P<link>(?:https?:)?[a-zA-Z0-9_#/\-\.]+)",
-        r"\n$",
+        r"\n?$",
     ))
     .unwrap();
+
+    /// Will search for a doc comment link and be used to check if the two
+    /// elements are the same, indicating a local path.
+    pub static ref LOCAL_PATH_LONG: Regex = Regex::new(concat!(
+        r"^",
+        r"\s*(?://[!/]\s*)?\[`?(?P<header>.+?)`?\]:\s*",
+        r"(?P<link>.+)",
+        r"\n?$"
+    )).unwrap();
 
     /// Non-capturing regex to check if something is exactly an item type as
     /// seen by rustdoc.
@@ -57,11 +66,49 @@ lazy_static! {
     pub static ref RUST_IDENTIFIER_RE: Regex = Regex::new(
         &format!(r"^{}$", RUST_IDENTIFIER)
     ).unwrap();
+
+    /// Start of a block where `Self` has a sense.
+    pub static ref TYPE_BLOCK_START: Regex = Regex::new(concat!(
+        r"^(?P<spaces>\s*)",
+        r"(?:pub(?:\(.+\))? )?",
+        r"(?:struct|trait|impl(?:<.*?>)?(?: .*? for)?|enum|union) ",
+        r"(?P<type>\w+)",
+        r"(?:<.*?>)?",
+        r"(?P<parenthese>\()?",
+        r".*\n?$",
+    )).unwrap();
 }
 
 pub const RUST_IDENTIFIER: &'static str = r"(?:[a-zA-Z_][a-zA-Z0-9_]*)";
 
 pub const HTML_SECTION: &'static str = r"(?:#[a-zA-Z0-9_\-\.]+)";
+
+#[cfg(test)]
+lazy_static::lazy_static! {
+    pub static ref OPTS_KRATE_DIS_AND_FAV: crate::ConversionOptions = crate::ConversionOptions {
+        krate: crate::Krate::new("krate").unwrap(),
+        disambiguate: true,
+        favored_links: true,
+    };
+
+    pub static ref OPTS_KRATE_NO_DIS_NO_FAV: crate::ConversionOptions = crate::ConversionOptions {
+        krate: crate::Krate::new("krate").unwrap(),
+        disambiguate: false,
+        favored_links: false,
+    };
+
+    pub static ref OPTS_KRATE_NO_DIS_BUT_FAV: crate::ConversionOptions = crate::ConversionOptions {
+        krate: crate::Krate::new("krate").unwrap(),
+        disambiguate: false,
+        favored_links: true,
+    };
+
+    pub static ref OPTS_KRATE_DIS_NO_FAV: crate::ConversionOptions = crate::ConversionOptions {
+        krate: crate::Krate::new("krate").unwrap(),
+        disambiguate: true,
+        favored_links: false,
+    };
+}
 
 #[test]
 fn link_to_treat_long_matching() {
@@ -212,4 +259,97 @@ fn html_section() {
 
     assert!(!reg.is_match("#"));
     assert!(!reg.is_match("abc"));
+}
+
+#[test]
+fn type_block_start() {
+    let type_decls = ["struct", "trait", "enum", "union"];
+
+    let visi_decls = [
+        "",
+        "pub",
+        "pub(crate)",
+        "pub(self)",
+        "pub(super)",
+        "pub(a)",
+        "pub(b::a)",
+    ];
+
+    let generics = ["", "<A>", "<A, B>", "<A: Trait, const B: usize>"];
+
+    let parentheses = ["", "(", "{", "where A: Trait", "where B: C {"];
+
+    for v in &visi_decls {
+        for t in &type_decls {
+            for g in &generics {
+                let string = &format!("{} {} Type{}\n", v, t, g);
+                let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                assert_eq!(
+                    "Type",
+                    captures.name("type").unwrap().as_str(),
+                    "{}",
+                    string
+                );
+            }
+        }
+    }
+
+    for v in &visi_decls {
+        for t in &type_decls {
+            for g in &generics {
+                for p in &parentheses {
+                    let string = &format!("{} {} Type{} {}\n", v, t, g, p);
+                    let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                    assert_eq!(
+                        "Type",
+                        captures.name("type").unwrap().as_str(),
+                        "{}",
+                        string
+                    );
+                }
+            }
+        }
+    }
+
+    for g1 in &generics {
+        for g2 in &generics {
+            for p in &parentheses {
+                let string = &format!("impl{} Type{} {}\n", g1, g2, p);
+                let captures = TYPE_BLOCK_START.captures(string).unwrap();
+                assert_eq!(
+                    "Type",
+                    captures.name("type").unwrap().as_str(),
+                    "{}",
+                    string
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn local_path_long() {
+    fn check_captures(string: &str) {
+        let captures = LOCAL_PATH_LONG.captures(string).unwrap();
+        assert_eq!(
+            "name 1",
+            captures.name("header").unwrap().as_str(),
+            "{}",
+            string
+        );
+        assert_eq!(
+            "item",
+            captures.name("link").unwrap().as_str(),
+            "{}",
+            string
+        );
+    }
+
+    check_captures("[name 1]: item");
+    check_captures("/// [name 1]: item");
+    check_captures("//! [name 1]: item");
+    check_captures("///\t[name 1]: item");
+    check_captures("\t[name 1]:\titem");
+    check_captures("[name 1]:\titem");
+    check_captures("[name 1]:item");
 }
