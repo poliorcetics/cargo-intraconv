@@ -12,6 +12,18 @@
   the links in the `src` directories. This search is recursive. It is still
   possible to give only one file to `cargo intraconv` and it will only
   consume this file.
+- Correctly transform `[name]: ../metadata` to `[name]: super::metadata`.
+- Type blocks are never added before a lone section. This means a link like
+  `[name]: #section` will never change.
+
+## Internals
+
+The internals of the crate have been extensively rewritten. They now use a 
+cleaner link parser that is more safe and more extensible.
+
+This was made necessary by #21, which asked for the support of `[name](link)`.
+Doing this with the previous internals would have duplicated pretty much
+everything. This is not the case anymore.
 
 # Version 1.1.0 - 2020-10-29
 
