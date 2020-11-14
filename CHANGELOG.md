@@ -13,6 +13,9 @@
   possible to give only one file to `cargo intraconv` and it will only
   consume this file.
 - Correctly transform `[name]: ../metadata` to `[name]: super::metadata`.
+- Correctly transform `[name](../metadata)` to `[name](super::metadata)`.
+  This will also correctly delete the `(link)` part if the transformation
+  produces something of the form `[name](name)`.
 - Type blocks are never added before a lone section. This means a link like
   `[name]: #section` will never change.
 
