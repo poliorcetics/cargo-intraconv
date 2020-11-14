@@ -124,22 +124,33 @@ impl ConversionContext {
         };
 
         if let Some(captures) = crate::consts::LOCAL_PATH_LONG.captures(&transformed) {
-            let header = captures.name("header").expect("Must be present to match").as_str();    
-            let link = captures.name("link").expect("Must be present to match").as_str();    
+            let header = captures
+                .name("header")
+                .expect("Must be present to match")
+                .as_str();
+            let link = captures
+                .name("link")
+                .expect("Must be present to match")
+                .as_str();
 
-            if header == link { return Action::Deleted { line, pos: self.pos }; }
+            if header == link {
+                return Action::Deleted {
+                    line,
+                    pos: self.pos,
+                };
+            }
         }
 
         // if line == transformed {
         //     Action::Unchanged { line }
         // } else {
-            let mut transformed = transformed;
-            transformed.push('\n');
-            Action::Replaced {
-                line,
-                new: transformed,
-                pos: self.pos,
-            }
+        let mut transformed = transformed;
+        transformed.push('\n');
+        Action::Replaced {
+            line,
+            new: transformed,
+            pos: self.pos,
+        }
         // }
     }
 }

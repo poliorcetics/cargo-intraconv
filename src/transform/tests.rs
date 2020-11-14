@@ -462,18 +462,28 @@ fn delete_local_links() {
     let mut ctx = CTX_KRATE_NO_DIS_BUT_FAV.clone();
 
     assert!(ctx.transform_line("[name]: name".into()).is_deleted());
-    assert!(ctx.transform_line("[`name::Item`]: name/Item".into()).is_deleted());
+    assert!(ctx
+        .transform_line("[`name::Item`]: name/Item".into())
+        .is_deleted());
 
     let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
-    assert!(!ctx.transform_line("[`name::Item`]: name/struct.Item.html".into()).is_deleted());
+    assert!(!ctx
+        .transform_line("[`name::Item`]: name/struct.Item.html".into())
+        .is_deleted());
 }
 
 #[test]
 fn section_and_assoc_add_self_when_type_block_is_empty() {
     let mut ctx = CTX_KRATE_DIS_AND_FAV.clone();
 
-    assert_eq!("[name]: Self#section\n", ctx.transform_line("[name]: #section".into()));
-    assert_eq!("[name]: Self::drain()\n" , ctx.transform_line("[name]: #method.drain".into()));
+    assert_eq!(
+        "[name]: Self#section\n",
+        ctx.transform_line("[name]: #section".into())
+    );
+    assert_eq!(
+        "[name]: Self::drain()\n",
+        ctx.transform_line("[name]: #method.drain".into())
+    );
 }
 
 #[test]

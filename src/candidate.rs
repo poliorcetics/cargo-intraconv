@@ -1,5 +1,5 @@
-use std::path::Path;
 use std::ffi::OsStr;
+use std::path::Path;
 
 /// A markdown link that has the right format to be transformed to an intra-doc
 /// link.
@@ -197,16 +197,26 @@ fn candidate_transform() {
 
     // Both contexts can transform favored links, for a context that cannot
     // see `test_link_parts`.
-    let mut ctx_dis = ConversionContext::with_options(crate::consts::OPTS_KRATE_DIS_AND_FAV.clone());
-    let mut ctx_no_dis = ConversionContext::with_options(crate::consts::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+    let mut ctx_dis =
+        ConversionContext::with_options(crate::consts::OPTS_KRATE_DIS_AND_FAV.clone());
+    let mut ctx_no_dis =
+        ConversionContext::with_options(crate::consts::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.
     check_transform("[`Link`]: #section", "[`Link`]: Self#section", &ctx_dis);
     check_transform("[`Link`]: #section", "[`Link`]: Self#section", &ctx_no_dis);
 
-    check_transform("[`Link`]: #method.drain", "[`Link`]: Self::drain()", &ctx_dis);
-    check_transform("[`Link`]: #method.drain", "[`Link`]: Self::drain()", &ctx_no_dis);
+    check_transform(
+        "[`Link`]: #method.drain",
+        "[`Link`]: Self::drain()",
+        &ctx_dis,
+    );
+    check_transform(
+        "[`Link`]: #method.drain",
+        "[`Link`]: Self::drain()",
+        &ctx_no_dis,
+    );
 
     ctx_dis.set_current_type_block("Block".into());
     ctx_no_dis.set_current_type_block("Block".into());
@@ -1229,11 +1239,7 @@ const VALID_LINKS: &[(&str, &str, &str)] = &[
         "[`Link`]: super::mod1::mod2::Type",
         "[`Link`]: super::mod1::mod2::Type",
     ),
-    (
-        "[`Link`]: regex",
-        "[`Link`]: mod@regex",
-        "[`Link`]: regex",
-    ),
+    ("[`Link`]: regex", "[`Link`]: mod@regex", "[`Link`]: regex"),
     (
         "[`Link`]: ../../regex",
         "[`Link`]: mod@super::super::regex",
