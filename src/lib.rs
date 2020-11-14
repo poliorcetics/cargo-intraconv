@@ -10,10 +10,10 @@ use transform::ConversionContext;
 mod options;
 use options::{ConversionOptions, Krate};
 
-mod link_analyser;
-use link_analyser::Candidate;
+mod candidate;
+use candidate::Candidate;
 
-mod link;
+mod link_parts;
 
 mod file_finder;
 
