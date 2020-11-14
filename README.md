@@ -26,6 +26,8 @@ crates) was the following, the path depending on the current and target files:
 /// [`make_ascii_uppercase`]: #method.make_ascii_uppercase
 
 /// [`f32::classify`]: ../../std/primitive.f32.html#method.classify
+
+/// See [the `Rotation` type](../struct.Rotation.html)
 ```
 
 It is now possible to write them with Rust paths, depending on the path of the
@@ -38,14 +40,26 @@ They are also easier to reason about since file hierachy does not affect them.
 /// [`make_ascii_uppercase`]: u8::make_ascii_uppercase()
 
 /// [`f32::classify`]: std::f32::classify()
+
+/// See [the `Rotation` type](super::Rotation)
+```
+
+When both side of the link are the same, it is possible to be even shorter:
+
+```diff
+/// See [`Rotation`]
+///
+- /// [`Rotation`]: struct.Rotation.html
+
+- /// See [`Rotation`](struct.Rotation.html)
++ /// See [`Rotation`]
 ```
 
 ## Why this crate ?
 
 Changing all the existing links can be tedious and can be automated. This crate
-is a proof-of-concept of the feasibility and it is my hope to include a similar
-tool in `cargo fix` soon. The goal of this crate is to help you while the
-`cargo fix` version is not available.
+is here to help you update your documentation to intra-doc links as painlessly
+as possible.
 
 ## Usage
 
@@ -68,8 +82,7 @@ $ cargo intravonc path/to/my/file.rs -f # Do not transform favored links to
 $ cargo intraconv path/to/my/file.rs -q # Do not display changes, only errors
 ```
 
-It is possible to give multiple paths to files. Note that directories will not
-work. Giving no paths will produce an error.
+It is possible to give multiple paths to files or directories.
 
 > Note: `intraconv` will accept any file, no just `.rs` ones: you can use it
 > on markdown files that are included as docs in Rust files for example.
@@ -92,10 +105,6 @@ For issues about this crate, here are a few:
   - `#method.method_name` links will sometimes be transformed to point to the
     wrong item. This is because `intraconv` uses regexes to find links and the
     types related to them, which is not perfect.
-  - `[Item](link)` links are not transformed. There are a lot more false 
-    positives with those so, as long as no one wants them, I will not add them.
-    I'm still open to a PR adding them if you wish to do so and will gladly
-    help you if needed !
 
 [the issues at `rust-lang/rust`]: https://github.com/rust-lang/rust/issues?q=is%3Aopen+label%3AA-intra-doc-links+label%3AC-bug
 
@@ -105,6 +114,11 @@ It is **not** an official tool and the way it works right now is based on regexe
 This approach means it is simple to understand but it has several drawbacks.
 For example `cargo-intraconv` is not aware of `use`s and will happily ignore them,
 even when they could shorten or remove links.
+
+## Contributing
+
+Any form of contribution is appreciated ! You can open issues or PR and I'll
+try to answer you quickly !
 
 ## License
 
