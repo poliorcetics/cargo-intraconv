@@ -115,12 +115,12 @@ impl ConversionContext {
 
         let candidate = match crate::Candidate::from_line(&line) {
             Ok(c) => c,
-            Err(_) => return Action::Unchanged { line },
+            Err(_) => { let mut line = line; line.push('\n'); return Action::Unchanged { line } }
         };
 
         let transformed = match candidate.transform(self) {
             Ok(t) => t,
-            Err(_) => return Action::Unchanged { line },
+            Err(_) => { let mut line = line; line.push('\n'); return Action::Unchanged { line } }
         };
 
         if let Some(captures) = crate::consts::LOCAL_PATH_LONG.captures(&transformed) {
