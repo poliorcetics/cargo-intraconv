@@ -56,6 +56,14 @@ lazy_static! {
         r"\n?$"
     )).unwrap();
 
+    /// Matches the short form of markdown links.
+    ///
+    /// To be used with `::regex::Regex::captures_iter`.
+    pub static ref LINK_TO_TREAT_SHORT: Regex = Regex::new(concat!(
+        r"\[(?P<c1>`)?(?P<name>.+?)(?P<c2>`)?\]",
+        r"\((?P<link>(?:https?:)?[a-zA-Z0-9_#/\-\.]+)\)",
+    )).unwrap();
+
     /// Non-capturing regex to check if something is exactly an item type as
     /// seen by rustdoc.
     ///
