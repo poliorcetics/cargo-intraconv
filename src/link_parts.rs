@@ -11,7 +11,7 @@ pub fn link_parts<'a>(
 ) -> Result<LinkParts<'a>, &'a std::ffi::OsStr> {
     favored_parts(path, opts)
         .or_else(|| start_middle_end(path, &opts.krate))
-        .ok_or(path.as_os_str())
+        .ok_or_else(|| path.as_os_str())
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -43,7 +43,7 @@ impl<'a> LinkParts<'a> {
             }
         }
 
-        for c in self.modules.unwrap_or(Path::new("")).components() {
+        for c in self.modules.unwrap_or_else(|| Path::new("")).components() {
             let c = c.as_os_str().to_str().expect("Has been checked already");
             if !result.is_empty() {
                 result.push_str("::");
@@ -90,9 +90,8 @@ impl<'a> LinkParts<'a> {
                     Some(AssocOrSection::Section(Section { name })) => {
                         // Put the suffix disambiguator before the section when
                         // there is one.
-                        match self.dis() {
-                            Disambiguator::Suffix(s) => result.push_str(s),
-                            _ => (),
+                        if let Disambiguator::Suffix(s) = self.dis() {
+                            result.push_str(s);
                         }
 
                         result.push('#');
@@ -508,7 +507,7 @@ fn item_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
             .expect("section should have # prefix")
     });
 
-    let untreated = path.parent().unwrap_or(Path::new(""));
+    let untreated = path.parent().unwrap_or_else(|| Path::new(""));
 
     let added = if let Some(section) = section {
         Some(AssocOrSection::Section(Section { name: section }))
@@ -606,13 +605,13 @@ fn module_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
         }
     };
 
-    let untreated = path.parent().unwrap_or(Path::new(""));
+    let untreated = path.parent().unwrap_or_else(|| Path::new(""));
     let untreated = if (None, None) == (captures.name("name"), captures.name("section")) {
         // - index.html
         // - ./index.html
         // - ../index.html
         // - path/to/mod/index.html
-        untreated.parent().unwrap_or(Path::new(""))
+        untreated.parent().unwrap_or_else(|| Path::new(""))
     } else {
         untreated
     };

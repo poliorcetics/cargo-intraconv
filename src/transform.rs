@@ -170,7 +170,7 @@ impl ConversionContext {
 /// The returned values are `(type name, end marker, starting line of the type block)`.
 /// The `starting line` value is found by enumerating over the iterator and
 /// adding `1` to the index.
-fn find_type_blocks<'a, S, I>(lines: I) -> Vec<(String, String, usize)>
+fn find_type_blocks<S, I>(lines: I) -> Vec<(String, String, usize)>
 where
     S: AsRef<str>,
     I: Iterator<Item = S>,
