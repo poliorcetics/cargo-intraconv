@@ -281,6 +281,19 @@ fn test_favored_docs_rs() {
     );
 
     // SAME CRATE
+    let link = Path::new("https://docs.rs/krate");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "crate".into(),
+                section: None,
+            },
+        })
+    );
+
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
         favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
