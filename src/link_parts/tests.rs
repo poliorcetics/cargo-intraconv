@@ -2,6 +2,13 @@ use super::*;
 
 #[test]
 fn test_favored_parts() {
+    // Wrong version
+    let link = Path::new("https://docs.rs/tracing-serde/badge.svg");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_NO_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+    );
+
     // FAVORED INACTIVE
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
     assert_eq!(
@@ -266,6 +273,13 @@ fn test_favored_parts() {
 
 #[test]
 fn test_favored_docs_rs() {
+    // Wrong version
+    let link = Path::new("https://docs.rs/tracing-serde/badge.svg");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        None
+    );
+
     // SAME CRATE
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(

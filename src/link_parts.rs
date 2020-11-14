@@ -332,7 +332,7 @@ fn favored_docs_rs<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
             }
             let v = v.as_os_str().to_str().unwrap_or("");
             if !VERSION_REGEX.is_match(v) {
-                return crate_only_link_parts();
+                return None;
             }
 
             v
