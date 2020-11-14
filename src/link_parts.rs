@@ -230,7 +230,7 @@ fn favored_parts<'a>(path: &'a Path, opts: &ConversionOptions) -> Option<LinkPar
     let comp_count = path.components().count();
 
     let mut comps = path.components();
-    let http = comps.next()?;
+    let _http = comps.next()?;
     let domain = comps.next()?;
 
     const DOCS_RS: &str = "docs.rs";
@@ -239,73 +239,118 @@ fn favored_parts<'a>(path: &'a Path, opts: &ConversionOptions) -> Option<LinkPar
     // Checking the domain for favored links patterns.
     match domain {
         // https://docs.rs/regex
-        Component::Normal(dom) if dom == DOCS_RS && [3, 4].contains(&comp_count) => {
-            let start = Start::Empty;
-            let modules = None;
-
-            let krate = comps.next()?.as_os_str();
-            // Early return that avoids making a conversion to UTF-8 when
-            // possible.
-            if krate == opts.krate.name() {
-                return Some(LinkParts {
-                    start,
-                    modules,
-                    end: End::Module {
-                        name: "crate".into(),
-                        section: None,
-                    },
-                });
-            }
-
-            let krate = krate.to_str()?;
-            if crate::RUST_IDENTIFIER_RE.is_match(krate) {
-                Some(LinkParts {
-                    start,
-                    modules,
-                    end: End::Module {
-                        name: krate.into(),
-                        section: None,
-                    },
-                })
-            } else {
-                // Attempts to fix the crate name to be a valid Rust
-                // identifier.
-                let krate = krate.replace('-', "_");
-                if crate::RUST_IDENTIFIER_RE.is_match(&krate) {
-                    Some(LinkParts {
-                        start,
-                        modules,
-                        end: End::Module {
-                            name: krate.into(),
-                            section: None,
-                        },
-                    })
-                } else {
-                    None
-                }
-            }
-        }
-        // https://docs.rs/regex/1.4.2/struct.Regex.html
-        Component::Normal(dom) if dom == DOCS_RS && comp_count >= 5 => {
-            let krate_id = comps.next().expect("At least 5 elements");
-            let version = comps.next().expect("At least 5 elements");
-            // Removing the now useless first part of the link.
-            let untreated = path
-                .strip_prefix(http)
-                .expect("Extracted from the path")
-                .strip_prefix(DOCS_RS)
-                .expect("Checked for domain name")
-                .strip_prefix(krate_id)
-                .expect("Just extracted")
-                .strip_prefix(version)
-                .expect("Just extracted");
-            start_middle_end(untreated, &opts.krate)
+        Component::Normal(dom) if dom == DOCS_RS && comp_count >= 3 => {
+            favored_docs_rs(path, &opts.krate)
         }
         Component::Normal(dom) if dom == DOC_RUST_LANG_ORG && comp_count >= 3 => {
             favored_doc_rust_lang_org(path, &opts.krate)
         }
         _ => None,
     }
+}
+
+fn favored_docs_rs<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
+    let mut comps = path.components();
+    let http = comps.next()?;
+    debug_assert!([
+        Component::Normal("http:".as_ref()),
+        Component::Normal("https:".as_ref())
+    ]
+    .contains(&http));
+    let domain = comps.next()?;
+    debug_assert_eq!(Component::Normal("docs.rs".as_ref()), domain);
+
+    let untreated = path
+        .strip_prefix(http)
+        .expect("Stripping http")
+        .strip_prefix(domain)
+        .expect("Stripping domain name");
+
+    let maybe_crate_name = comps.next()?.as_os_str();
+
+    let (crate_name, untreated) = if maybe_crate_name == "crate" {
+        (
+            comps.next()?.as_os_str(),
+            untreated
+                .strip_prefix(maybe_crate_name)
+                .expect("Stripping 'crate' from path"),
+        )
+    } else {
+        (maybe_crate_name, untreated)
+    };
+
+    let crate_only_link_parts = || {
+        let start = Start::Empty;
+        let modules = None;
+
+        // Early return that avoids making a conversion to UTF-8 when
+        // possible.
+        if crate_name == krate.name() {
+            return Some(LinkParts {
+                start,
+                modules,
+                end: End::Module {
+                    name: "crate".into(),
+                    section: None,
+                },
+            });
+        }
+
+        let crate_name = crate_name.to_str()?;
+        if crate::RUST_IDENTIFIER_RE.is_match(crate_name) {
+            Some(LinkParts {
+                start,
+                modules,
+                end: End::Module {
+                    name: crate_name.into(),
+                    section: None,
+                },
+            })
+        } else {
+            // Attempts to fix the crate name to be a valid Rust
+            // identifier.
+            let crate_name = crate_name.replace('-', "_");
+            if crate::RUST_IDENTIFIER_RE.is_match(&crate_name) {
+                Some(LinkParts {
+                    start,
+                    modules,
+                    end: End::Module {
+                        name: crate_name.into(),
+                        section: None,
+                    },
+                })
+            } else {
+                None
+            }
+        }
+    };
+
+    let version = match comps.next() {
+        Some(v) => {
+            lazy_static::lazy_static! {
+                static ref VERSION_REGEX: Regex = Regex::new(r"(?:\d+\.\d+\.\d+|latest)").unwrap();
+            }
+            let v = v.as_os_str().to_str().unwrap_or("");
+            if !VERSION_REGEX.is_match(v) {
+                return crate_only_link_parts();
+            }
+
+            v
+        }
+        None => return crate_only_link_parts(),
+    };
+
+    match comps.next().map(|x| x.as_os_str()) {
+        Some(_) => (),        None => return crate_only_link_parts(),
+    }
+
+    let untreated = untreated
+        .strip_prefix(crate_name)
+        .expect("Removing crate first identifier")
+        .strip_prefix(version)
+        .expect("Removing version");
+
+    start_middle_end(untreated, krate)
 }
 
 fn favored_doc_rust_lang_org<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
@@ -359,7 +404,7 @@ fn favored_doc_rust_lang_org<'a>(path: &'a Path, krate: &Krate) -> Option<LinkPa
         return None;
     }
 
-    if untreated.components().count() == 0 {
+    if untreated.components().next().is_none() {
         let k = if linked_crate == krate.name() {
             "crate"
         } else {

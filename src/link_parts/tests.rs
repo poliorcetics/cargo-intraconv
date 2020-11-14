@@ -13,170 +13,122 @@ fn test_favored_parts() {
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Crate,
-            modules: None,
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Type",
-                added: None,
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
-    // FAVORED ACTIVE
-
-    // None.
-    let link = Path::new("https://example.com");
+    let link = Path::new("https://docs.rs/crate/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        None
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
-    // doc.rs
     let link = Path::new("https://docs.rs");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        None
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/crate");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/regex/latest");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/latest/");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/1.4.2");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Empty,
-            modules: None,
-            end: End::Module {
-                name: "regex".into(),
-                section: None
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/regex/latest/regex");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/1.4.2/regex");
+    assert_eq!(
+        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: None,
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Regex",
-                added: None,
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: None,
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Regex",
-                added: Some(AssocOrSection::Section(Section { name: "examples" })),
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: None,
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Regex",
-                added: Some(AssocOrSection::Assoc(AssociatedItem {
-                    dis: Disambiguator::Suffix("()"),
-                    name: "is_match"
-                })),
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: None,
-            end: End::Module {
-                name: "bytes".into(),
-                section: None,
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: Some(Path::new("bytes")),
-            end: End::Section(Section { name: "syntax" }),
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: Some(Path::new("bytes")),
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Regex",
-                added: Some(AssocOrSection::Section(Section { name: "examples" })),
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link =
         Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match");
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        Some(LinkParts {
-            start: Start::Mod("regex"),
-            modules: Some(Path::new("bytes")),
-            end: End::Item {
-                dis: Disambiguator::Prefix("type@"),
-                name: "Regex",
-                added: Some(AssocOrSection::Assoc(AssociatedItem {
-                    dis: Disambiguator::Suffix("()"),
-                    name: "is_match"
-                })),
-            },
-        })
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     // doc.rust-lang.org
@@ -309,6 +261,267 @@ fn test_favored_parts() {
     assert_eq!(
         favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
         favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+    );
+}
+
+#[test]
+fn test_favored_docs_rs() {
+    // SAME CRATE
+    let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Crate,
+            modules: None,
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Type",
+                added: None,
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/crate/krate-name/1.2.3/krate/struct.Type.html");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Crate,
+            modules: None,
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Type",
+                added: None,
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        None
+    );
+
+    let link = Path::new("https://docs.rs/crate");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        None
+    );
+
+    let link = Path::new("https://docs.rs/regex/");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/latest");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/latest/");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/1.4.2");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/latest/regex");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/crate/regex/1.4.2/regex");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Empty,
+            modules: None,
+            end: End::Module {
+                name: "regex".into(),
+                section: None
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: None,
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Regex",
+                added: None,
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: None,
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Regex",
+                added: Some(AssocOrSection::Section(Section { name: "examples" })),
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: None,
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Regex",
+                added: Some(AssocOrSection::Assoc(AssociatedItem {
+                    dis: Disambiguator::Suffix("()"),
+                    name: "is_match"
+                })),
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: None,
+            end: End::Module {
+                name: "bytes".into(),
+                section: None,
+            },
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: Some(Path::new("bytes")),
+            end: End::Section(Section { name: "syntax" }),
+        })
+    );
+
+    let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: Some(Path::new("bytes")),
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Regex",
+                added: Some(AssocOrSection::Section(Section { name: "examples" })),
+            },
+        })
+    );
+
+    let link =
+        Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match");
+    assert_eq!(
+        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        Some(LinkParts {
+            start: Start::Mod("regex"),
+            modules: Some(Path::new("bytes")),
+            end: End::Item {
+                dis: Disambiguator::Prefix("type@"),
+                name: "Regex",
+                added: Some(AssocOrSection::Assoc(AssociatedItem {
+                    dis: Disambiguator::Suffix("()"),
+                    name: "is_match"
+                })),
+            },
+        })
     );
 }
 
