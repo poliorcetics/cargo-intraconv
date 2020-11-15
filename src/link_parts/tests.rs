@@ -5,269 +5,269 @@ fn test_favored_parts() {
     // Wrong version
     let link = Path::new("https://docs.rs/tracing-serde/badge.svg");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_NO_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_parts(link, &crate::OPTS_KRATE_DIS_NO_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
     );
 
     // FAVORED INACTIVE
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_NO_FAV),
+        favored_parts(link, &crate::OPTS_KRATE_DIS_NO_FAV),
         None
     );
 
     // SAME CRATE
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/latest");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate/regex/");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate/regex/latest/");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate/regex/1.4.2");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/latest/regex");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/crate/regex/1.4.2/regex");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link =
         Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     // doc.rust-lang.org
     // Missing/Invalid crate
     let link = Path::new("https://doc.rust-lang.org/");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/other");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/beta");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/stable");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/1.42.0");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/nightly-rustc");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     // Valid crate, short form
     let link = Path::new("https://doc.rust-lang.org/std");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/alloc");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/core");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/test");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/proc_macro");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     // Valid crate, long form
     let link = Path::new("https://doc.rust-lang.org/nightly/std");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/alloc");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/core");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/test");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/proc_macro");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/std/string/index.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link =
         Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 
     let link =
         Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain");
     assert_eq!(
-        favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV),
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate)
+        favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate)
     );
 }
 
@@ -276,14 +276,14 @@ fn test_favored_docs_rs() {
     // Wrong version
     let link = Path::new("https://docs.rs/tracing-serde/badge.svg");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     // SAME CRATE
     let link = Path::new("https://docs.rs/krate");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -296,7 +296,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Crate,
             modules: None,
@@ -310,25 +310,25 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/crate/krate-name/1.2.3/krate/struct.Type.html");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None,
     );
 
     let link = Path::new("https://docs.rs");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://docs.rs/crate");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://docs.rs/regex/");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -341,7 +341,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -354,7 +354,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/latest");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -367,25 +367,25 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/crate/regex/");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None,
     );
 
     let link = Path::new("https://docs.rs/crate/regex/latest/");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None,
     );
 
     let link = Path::new("https://docs.rs/crate/regex/1.4.2");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None,
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -398,7 +398,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/latest/regex");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -411,13 +411,13 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/crate/regex/1.4.2/regex");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None,
     );
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: None,
@@ -431,7 +431,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#examples");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: None,
@@ -445,7 +445,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/struct.Regex.html#method.is_match");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: None,
@@ -462,7 +462,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: None,
@@ -475,7 +475,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/index.html#syntax");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -485,7 +485,7 @@ fn test_favored_docs_rs() {
 
     let link = Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#examples");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -500,7 +500,7 @@ fn test_favored_docs_rs() {
     let link =
         Path::new("https://docs.rs/regex/1.4.2/regex/bytes/struct.Regex.html#method.is_match");
     assert_eq!(
-        favored_docs_rs(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_docs_rs(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -521,50 +521,50 @@ fn test_favored_doc_rust_lang_org() {
     // Missing/Invalid crate
     let link = Path::new("https://doc.rust-lang.org/");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/other");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/beta");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/stable");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/1.42.0");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     let link = Path::new("https://doc.rust-lang.org/nightly/nightly-rustc");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
 
     // Valid crate, short form
     let link = Path::new("https://doc.rust-lang.org/std");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -577,7 +577,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/alloc");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -590,7 +590,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/core");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -603,7 +603,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/test");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -616,7 +616,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/proc_macro");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -630,7 +630,7 @@ fn test_favored_doc_rust_lang_org() {
     // Valid crate, long form
     let link = Path::new("https://doc.rust-lang.org/nightly/std");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -643,7 +643,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/alloc");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -656,7 +656,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/core");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -669,7 +669,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/test");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -682,7 +682,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/proc_macro");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -695,7 +695,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/std/string/index.html");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: None,
@@ -708,7 +708,7 @@ fn test_favored_doc_rust_lang_org() {
 
     let link = Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: Some(Path::new("string")),
@@ -723,7 +723,7 @@ fn test_favored_doc_rust_lang_org() {
     let link =
         Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html#examples");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: Some(Path::new("string")),
@@ -738,7 +738,7 @@ fn test_favored_doc_rust_lang_org() {
     let link =
         Path::new("https://doc.rust-lang.org/nightly/std/string/struct.String.html#method.drain");
     assert_eq!(
-        favored_doc_rust_lang_org(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        favored_doc_rust_lang_org(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: Some(Path::new("string")),
@@ -834,21 +834,21 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#struct.Item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         section_parts(
             Path::new("./#struct.Item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         section_parts(
             Path::new("././#struct.Item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
@@ -856,7 +856,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section/rest"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
@@ -866,7 +866,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section-a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -877,7 +877,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section-1"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -888,7 +888,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section-A"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -899,7 +899,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section_a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -910,7 +910,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#section.a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -921,7 +921,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#Section.a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -932,7 +932,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#rection.a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -943,7 +943,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#0ection.a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -954,7 +954,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("#_ection.a"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Local,
@@ -966,7 +966,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("krate/#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Crate,
@@ -978,7 +978,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("../krate/#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Crate,
@@ -990,7 +990,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("mod1/#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Mod("mod1"),
@@ -1002,7 +1002,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("mod1/mod2/#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Mod("mod1"),
@@ -1014,7 +1014,7 @@ fn test_section_parts() {
     assert_eq!(
         section_parts(
             Path::new("../../mod1/mod2/#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         Some(LinkParts {
             start: Start::Supers(2),
@@ -1035,7 +1035,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Empty,
@@ -1054,7 +1054,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Empty,
@@ -1076,7 +1076,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Empty,
@@ -1098,7 +1098,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Local,
@@ -1118,7 +1118,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Supers(1),
@@ -1138,7 +1138,7 @@ fn test_item_parts() {
         assert_eq!(
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             ),
             Some(LinkParts {
                 start: Start::Supers(1),
@@ -1155,42 +1155,42 @@ fn test_item_parts() {
     assert_eq!(
         item_parts(
             Path::new("#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         item_parts(
             Path::new("#fn.associated_item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         item_parts(
             Path::new("https://docs.rs/regex"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         item_parts(
             Path::new("http://example.com"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         item_parts(
             Path::new("mod1"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         item_parts(
             Path::new("../mod1/mod2/index.html#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
@@ -1200,7 +1200,7 @@ fn test_item_parts() {
 fn test_module_parts() {
     let link = Path::new("regex");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -1213,7 +1213,7 @@ fn test_module_parts() {
 
     let link = Path::new("../../regex");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Supers(2),
             modules: None,
@@ -1226,7 +1226,7 @@ fn test_module_parts() {
 
     let link = Path::new("../../mod1/mod2/regex");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Supers(2),
             modules: Some(Path::new("mod1/mod2")),
@@ -1239,7 +1239,7 @@ fn test_module_parts() {
 
     let link = Path::new("../../krate/mod1/mod2/regex");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Crate,
             modules: Some(Path::new("mod1/mod2")),
@@ -1252,7 +1252,7 @@ fn test_module_parts() {
 
     let link = Path::new("regex/bytes/index.html");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: None,
@@ -1265,7 +1265,7 @@ fn test_module_parts() {
 
     let link = Path::new("regex/bytes/index.html#syntax");
     assert_eq!(
-        module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -1276,42 +1276,42 @@ fn test_module_parts() {
     assert_eq!(
         module_parts(
             Path::new("#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         module_parts(
             Path::new("#fn.associated_item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         module_parts(
             Path::new("struct.Type.html#fn.associated_item"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         module_parts(
             Path::new("struct.Type.html#section"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         module_parts(
             Path::new("https://docs.rs/regex/latest/regex/index.html"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
     assert_eq!(
         module_parts(
             Path::new("http://example.com"),
-            &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+            &crate::OPTS_KRATE_DIS_AND_FAV.krate
         ),
         None
     );
@@ -1351,7 +1351,7 @@ fn disambiguate_from() {
 fn test_start_middle_end() {
     let link = Path::new("regex/bytes/index.html#examples");
     assert_eq!(
-        start_middle_end(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_middle_end(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -1361,7 +1361,7 @@ fn test_start_middle_end() {
 
     let link = Path::new("std/string/struct.String.html#method.with_capacity");
     assert_eq!(
-        start_middle_end(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_middle_end(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: Some(Path::new("string")),
@@ -1378,7 +1378,7 @@ fn test_start_middle_end() {
 
     let link = Path::new("#method.with_capacity");
     assert_eq!(
-        start_middle_end(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_middle_end(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Local,
             modules: None,
@@ -1391,7 +1391,7 @@ fn test_start_middle_end() {
 
     let link = Path::new("bytes#examples");
     assert_eq!(
-        start_middle_end(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_middle_end(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -1408,7 +1408,7 @@ fn test_start_and_middle() {
     let link = Path::new("regex/bytes");
     let end = End::Section(Section { name: "examples" });
     assert_eq!(
-        start_and_middle(link, end, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_and_middle(link, end, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("regex"),
             modules: Some(Path::new("bytes")),
@@ -1426,7 +1426,7 @@ fn test_start_and_middle() {
         })),
     };
     assert_eq!(
-        start_and_middle(link, end, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_and_middle(link, end, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Mod("std"),
             modules: Some(Path::new("string")),
@@ -1447,7 +1447,7 @@ fn test_start_and_middle() {
         name: "with_capacity",
     });
     assert_eq!(
-        start_and_middle(link, end, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_and_middle(link, end, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -1464,7 +1464,7 @@ fn test_start_and_middle() {
         section: Some(Section { name: "examples" }),
     };
     assert_eq!(
-        start_and_middle(link, end, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate),
+        start_and_middle(link, end, &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         Some(LinkParts {
             start: Start::Empty,
             modules: None,
@@ -1593,7 +1593,7 @@ fn test_link_parts() {
     for &invalid in INVALID_FAVORED {
         let link = Path::new(invalid);
         assert_eq!(
-            link_parts(link, &crate::consts::OPTS_KRATE_DIS_NO_FAV).unwrap_err(),
+            link_parts(link, &crate::OPTS_KRATE_DIS_NO_FAV).unwrap_err(),
             link.as_os_str()
         );
     }
@@ -1637,8 +1637,8 @@ fn test_link_parts() {
     for &valid in VALID_FAVORED {
         let link = Path::new(valid);
         assert_eq!(
-            link_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV).unwrap(),
-            favored_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV).unwrap()
+            link_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            favored_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV).unwrap()
         )
     }
 
@@ -1647,7 +1647,7 @@ fn test_link_parts() {
     for &valid in VALID_ASSOCIATED {
         let link = Path::new(valid);
         assert_eq!(
-            link_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            link_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
             associated_item_parts(link).unwrap()
         )
     }
@@ -1672,8 +1672,8 @@ fn test_link_parts() {
     for &valid in VALID_SECTION {
         let link = Path::new(valid);
         assert_eq!(
-            link_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV).unwrap(),
-            section_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
+            link_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            section_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
         )
     }
 
@@ -1686,12 +1686,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1702,12 +1702,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1718,12 +1718,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1735,12 +1735,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1752,12 +1752,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1769,12 +1769,12 @@ fn test_link_parts() {
         assert_eq!(
             link_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV
+                &crate::OPTS_KRATE_DIS_AND_FAV
             )
             .unwrap(),
             item_parts(
                 Path::new(&rust_item),
-                &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate
+                &crate::OPTS_KRATE_DIS_AND_FAV.krate
             )
             .unwrap(),
         );
@@ -1794,8 +1794,8 @@ fn test_link_parts() {
     for &valid in VALID_MODULES {
         let link = Path::new(valid);
         assert_eq!(
-            link_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV).unwrap(),
-            module_parts(link, &crate::consts::OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
+            link_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            module_parts(link, &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap()
         );
     }
 }
@@ -1817,9 +1817,9 @@ fn test_link_parts_transform() {
     // Both contexts can transform favored links, for a context that cannot
     // see `test_link_parts`.
     let mut ctx_dis =
-        ConversionContext::with_options(crate::consts::OPTS_KRATE_DIS_AND_FAV.clone());
+        ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
     let mut ctx_no_dis =
-        ConversionContext::with_options(crate::consts::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+        ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.

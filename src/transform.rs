@@ -131,7 +131,7 @@ impl ConversionContext {
             }
         };
 
-        if let Some(captures) = crate::consts::LOCAL_PATH_LONG.captures(&transformed) {
+        if let Some(captures) = crate::LOCAL_PATH_LONG.captures(&transformed) {
             let header = captures
                 .name("header")
                 .expect("Must be present to match")
