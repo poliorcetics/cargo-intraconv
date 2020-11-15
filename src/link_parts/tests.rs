@@ -11,10 +11,7 @@ fn test_favored_parts() {
 
     // FAVORED INACTIVE
     let link = Path::new("https://docs.rs/regex/1.4.2/regex");
-    assert_eq!(
-        favored_parts(link, &crate::OPTS_KRATE_DIS_NO_FAV),
-        None
-    );
+    assert_eq!(favored_parts(link, &crate::OPTS_KRATE_DIS_NO_FAV), None);
 
     // SAME CRATE
     let link = Path::new("https://docs.rs/krate-name/1.2.3/krate/struct.Type.html");
@@ -1033,10 +1030,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Empty,
                 modules: None,
@@ -1052,10 +1046,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html#method.call");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Empty,
                 modules: None,
@@ -1074,10 +1065,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html#section-name");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Empty,
                 modules: None,
@@ -1096,10 +1084,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Local,
                 modules: None,
@@ -1116,10 +1101,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Supers(1),
                 modules: None,
@@ -1136,10 +1118,7 @@ fn test_item_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            ),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
             Some(LinkParts {
                 start: Start::Supers(1),
                 modules: Some(Path::new("mod1/mod2")),
@@ -1153,10 +1132,7 @@ fn test_item_parts() {
     }
 
     assert_eq!(
-        item_parts(
-            Path::new("#section"),
-            &crate::OPTS_KRATE_DIS_AND_FAV.krate
-        ),
+        item_parts(Path::new("#section"), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
     assert_eq!(
@@ -1181,10 +1157,7 @@ fn test_item_parts() {
         None
     );
     assert_eq!(
-        item_parts(
-            Path::new("mod1"),
-            &crate::OPTS_KRATE_DIS_AND_FAV.krate
-        ),
+        item_parts(Path::new("mod1"), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
     assert_eq!(
@@ -1274,10 +1247,7 @@ fn test_module_parts() {
     );
 
     assert_eq!(
-        module_parts(
-            Path::new("#section"),
-            &crate::OPTS_KRATE_DIS_AND_FAV.krate
-        ),
+        module_parts(Path::new("#section"), &crate::OPTS_KRATE_DIS_AND_FAV.krate),
         None
     );
     assert_eq!(
@@ -1684,48 +1654,24 @@ fn test_link_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
 
         rust_item.clear();
         rust_item.push_str(item);
         rust_item.push_str(".Type.html#method.call");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
 
         rust_item.clear();
         rust_item.push_str(item);
         rust_item.push_str(".Type.html#section-name");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
 
         rust_item.clear();
@@ -1733,16 +1679,8 @@ fn test_link_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
 
         rust_item.clear();
@@ -1750,16 +1688,8 @@ fn test_link_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
 
         rust_item.clear();
@@ -1767,16 +1697,8 @@ fn test_link_parts() {
         rust_item.push_str(item);
         rust_item.push_str(".Type.html");
         assert_eq!(
-            link_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV
-            )
-            .unwrap(),
-            item_parts(
-                Path::new(&rust_item),
-                &crate::OPTS_KRATE_DIS_AND_FAV.krate
-            )
-            .unwrap(),
+            link_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV).unwrap(),
+            item_parts(Path::new(&rust_item), &crate::OPTS_KRATE_DIS_AND_FAV.krate).unwrap(),
         );
     }
 
@@ -1816,10 +1738,8 @@ fn test_link_parts_transform() {
 
     // Both contexts can transform favored links, for a context that cannot
     // see `test_link_parts`.
-    let mut ctx_dis =
-        ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
-    let mut ctx_no_dis =
-        ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+    let mut ctx_dis = ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
+    let mut ctx_no_dis = ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.

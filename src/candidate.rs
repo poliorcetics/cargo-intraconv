@@ -291,10 +291,8 @@ fn candidate_transform() {
 
     // Both contexts can transform favored links, for a context that cannot
     // see `test_link_parts`.
-    let mut ctx_dis =
-        ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
-    let mut ctx_no_dis =
-        ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+    let mut ctx_dis = ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
+    let mut ctx_no_dis = ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
 
     // Ensure sections and associated items are not transformed when the
     // current type block is empty.
