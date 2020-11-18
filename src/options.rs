@@ -1,8 +1,12 @@
+use std::path::Path;
+
 /// Options specific to the conversion of a file only.
 ///
 /// See the `Args` struct for more information.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct ConversionOptions {
+///
+/// The `'cf` lifetime is for the configuration file.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ConversionOptions<'cf> {
     /// Crate name.
     ///
     /// The `Krate` type will ensure this is a valid Rust identifier.
@@ -18,10 +22,26 @@ pub struct ConversionOptions {
     /// When `true` favored links will be checked for which means some `https`
     /// links may be transformed.
     pub favored_links: bool,
+
+    /// Contains the links that have been marked as ignored through a
+    /// configuration file.
+    ///
+    /// Paths that had two components or more must have been canonicalized
+    /// before being saved here.
+    pub ignored_links: &'cf crate::FileConfig,
+
+    ///
+    pub current_path: &'cf Path,
+}
+
+impl<'cf> ConversionOptions<'cf> {
+    pub fn is_ignored(&self, name: &str, value: &Path) -> bool {
+        self.ignored_links.is_ignored(self.current_path, name, value)
+    }
 }
 
 /// A valid Rust identifier for a crate.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Krate(String);
 
 impl Krate {
