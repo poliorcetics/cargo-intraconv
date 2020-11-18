@@ -56,7 +56,8 @@ enum Candidates<'a> {
 }
 
 impl<'a> Candidates<'a> {
-    fn from_line<S>(line: &'a S) -> Option<Self> where
+    fn from_line<S>(line: &'a S) -> Option<Self>
+    where
         S: AsRef<OsStr> + ?Sized + 'a,
     {
         let string = line.as_ref().to_str()?;

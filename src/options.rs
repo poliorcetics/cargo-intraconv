@@ -36,7 +36,8 @@ pub struct ConversionOptions<'cf> {
 
 impl<'cf> ConversionOptions<'cf> {
     pub fn is_ignored(&self, name: &str, value: &Path) -> bool {
-        self.ignored_links.is_ignored(self.current_path, name, value)
+        self.ignored_links
+            .is_ignored(self.current_path, name, value)
     }
 }
 

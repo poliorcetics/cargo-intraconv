@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
@@ -22,7 +22,6 @@ pub struct RawFileConfig {
     /// ```
     globals: HashMap<String, BTreeSet<PathBuf>>,
 
-
     /// Form:
     ///
     /// ```toml
@@ -41,7 +40,10 @@ pub struct RawFileConfig {
 impl RawFileConfig {
     pub fn finish(mut self) -> std::io::Result<FileConfig> {
         let mut canonicalized = self.per_file.clone();
-        canonicalized.retain(|k, _| { let mut c = k.components(); c.next().is_some() && c.next().is_none() });
+        canonicalized.retain(|k, _| {
+            let mut c = k.components();
+            c.next().is_some() && c.next().is_none()
+        });
         for (k, v) in self.per_file.into_iter() {
             let mut c = k.components();
             // Testing if the path has two components without checking it in
