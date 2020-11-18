@@ -3,10 +3,10 @@ use std::io::{self, BufRead};
 
 /// Context for the check. It notably contains informations about the crate and
 /// the current type (e.g, for `#method.name` links).
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ConversionContext {
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ConversionContext<'opts> {
     /// Options to apply when transforming a single file.
-    options: crate::ConversionOptions,
+    options: crate::ConversionOptions<'opts>,
 
     /// Current line number.
     pos: usize,
@@ -34,9 +34,9 @@ pub struct ConversionContext {
     type_blocks: Vec<(String, String, usize)>,
 }
 
-impl ConversionContext {
+impl<'opts> ConversionContext<'opts> {
     /// Creates a new `ConversionContext` with the given options.
-    pub fn with_options(options: crate::ConversionOptions) -> Self {
+    pub fn with_options(options: crate::ConversionOptions<'opts>) -> Self {
         Self {
             options,
             pos: 0,
@@ -114,8 +114,8 @@ impl ConversionContext {
         }
 
         let candidate = match crate::Candidate::from_line(&line) {
-            Ok(c) => c,
-            Err(_) => {
+            Some(c) => c,
+            None => {
                 let mut line = line;
                 line.push('\n');
                 return Action::Unchanged { line };
@@ -123,8 +123,8 @@ impl ConversionContext {
         };
 
         let transformed = match candidate.transform(self) {
-            Ok(t) => t,
-            Err(_) => {
+            Some(t) => t,
+            None => {
                 let mut line = line;
                 line.push('\n');
                 return Action::Unchanged { line };
