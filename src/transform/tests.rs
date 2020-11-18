@@ -1,31 +1,6 @@
 use super::*;
-use crate::{ConversionOptions, Krate};
-
-lazy_static::lazy_static! {
-    static ref CTX_KRATE_DIS_AND_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
-        krate: Krate::new("krate").unwrap(),
-        disambiguate: true,
-        favored_links: true,
-    });
-
-    static ref CTX_KRATE_NO_DIS_NO_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
-        krate: Krate::new("krate").unwrap(),
-        disambiguate: false,
-        favored_links: false,
-    });
-
-    static ref CTX_KRATE_NO_DIS_BUT_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
-        krate: Krate::new("krate").unwrap(),
-        disambiguate: false,
-        favored_links: true,
-    });
-
-    static ref CTX_KRATE_DIS_NO_FAV: ConversionContext = ConversionContext::with_options(ConversionOptions {
-        krate: Krate::new("krate").unwrap(),
-        disambiguate: true,
-        favored_links: false,
-    });
-}
+use crate::*;
+use std::path::Path;
 
 impl PartialEq<str> for Action {
     fn eq(&self, other: &str) -> bool {
@@ -75,6 +50,8 @@ fn new() {
             krate: krate.clone(),
             disambiguate: false,
             favored_links: true,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         },
         pos: 0,
         curr_type_block: None,
@@ -87,7 +64,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: krate.clone(),
             disambiguate: false,
-            favored_links: true
+            favored_links: true,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -96,7 +75,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: krate.clone(),
             disambiguate: true,
-            favored_links: true
+            favored_links: true,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -104,7 +85,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: krate.clone(),
             disambiguate: true,
-            favored_links: false
+            favored_links: false,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -112,7 +95,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: krate,
             disambiguate: false,
-            favored_links: false
+            favored_links: false,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -121,7 +106,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: not_krate.clone(),
             disambiguate: true,
-            favored_links: true
+            favored_links: true,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -129,7 +116,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: not_krate.clone(),
             disambiguate: true,
-            favored_links: false
+            favored_links: false,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -137,7 +126,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: not_krate.clone(),
             disambiguate: false,
-            favored_links: true
+            favored_links: true,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );
@@ -145,7 +136,9 @@ fn new() {
         ConversionContext::with_options(ConversionOptions {
             krate: not_krate,
             disambiguate: false,
-            favored_links: false
+            favored_links: false,
+            ignored_links: &Default::default(),
+            current_path: Path::new(""),
         }),
         ctx
     );

@@ -60,7 +60,7 @@ lazy_static! {
     ///
     /// To be used with `::regex::Regex::captures_iter`.
     pub static ref LINK_TO_TREAT_SHORT: Regex = Regex::new(concat!(
-        r"\[(?P<c1>`)?(?P<name>.+?)(?P<c2>`)?\]",
+        r"\[(?P<header>(?P<c1>`)?(?P<name>.+?)(?P<c2>`)?)\]",
         r"\((?P<link>(?:https?:)?[a-zA-Z0-9_#/\-\.]+)\)",
     )).unwrap();
 
@@ -92,30 +92,53 @@ pub const RUST_IDENTIFIER: &str = r"(?:[a-zA-Z_][a-zA-Z0-9_]*)";
 pub const HTML_SECTION: &str = r"(?:#[a-zA-Z0-9_\-\.]+)";
 
 #[cfg(test)]
+use crate::{ConversionContext, ConversionOptions, FileConfig, Krate};
+#[cfg(test)]
+use std::path::Path;
+
+#[cfg(test)]
 lazy_static::lazy_static! {
-    pub static ref OPTS_KRATE_DIS_AND_FAV: crate::ConversionOptions = crate::ConversionOptions {
-        krate: crate::Krate::new("krate").unwrap(),
+    pub static ref NO_IGNORE: FileConfig = Default::default();
+
+    pub static ref OPTS_KRATE_DIS_AND_FAV: ConversionOptions<'static> = ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
         disambiguate: true,
         favored_links: true,
+        ignored_links: &NO_IGNORE,
+        current_path: Path::new(""),
     };
 
-    pub static ref OPTS_KRATE_NO_DIS_NO_FAV: crate::ConversionOptions = crate::ConversionOptions {
-        krate: crate::Krate::new("krate").unwrap(),
+    pub static ref OPTS_KRATE_NO_DIS_NO_FAV: ConversionOptions<'static> = ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
         disambiguate: false,
         favored_links: false,
+        ignored_links: &NO_IGNORE,
+        current_path: Path::new(""),
     };
 
-    pub static ref OPTS_KRATE_NO_DIS_BUT_FAV: crate::ConversionOptions = crate::ConversionOptions {
-        krate: crate::Krate::new("krate").unwrap(),
+    pub static ref OPTS_KRATE_NO_DIS_BUT_FAV: ConversionOptions<'static> = ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
         disambiguate: false,
         favored_links: true,
+        ignored_links: &NO_IGNORE,
+        current_path: Path::new(""),
     };
 
-    pub static ref OPTS_KRATE_DIS_NO_FAV: crate::ConversionOptions = crate::ConversionOptions {
-        krate: crate::Krate::new("krate").unwrap(),
+    pub static ref OPTS_KRATE_DIS_NO_FAV: ConversionOptions<'static> = ConversionOptions {
+        krate: Krate::new("krate").unwrap(),
         disambiguate: true,
         favored_links: false,
+        ignored_links: &NO_IGNORE,
+        current_path: Path::new(""),
     };
+
+    pub static ref CTX_KRATE_DIS_AND_FAV: ConversionContext<'static> = ConversionContext::with_options(OPTS_KRATE_DIS_AND_FAV.clone());
+
+    pub static ref CTX_KRATE_NO_DIS_NO_FAV: ConversionContext<'static> = ConversionContext::with_options(OPTS_KRATE_NO_DIS_NO_FAV.clone());
+
+    pub static ref CTX_KRATE_NO_DIS_BUT_FAV: ConversionContext<'static> = ConversionContext::with_options(OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+
+    pub static ref CTX_KRATE_DIS_NO_FAV: ConversionContext<'static> = ConversionContext::with_options(OPTS_KRATE_DIS_NO_FAV.clone());
 }
 
 #[test]
