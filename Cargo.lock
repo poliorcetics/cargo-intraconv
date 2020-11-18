@@ -49,7 +49,7 @@ checksum = "781f336cc9826dbaddb9754cb5db61e64cab4f69668bd19dcc4a0394a86f4cb1"
 
 [[package]]
 name = "cargo-intraconv"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "ansi_term",
  "argh",
