@@ -8,11 +8,7 @@
 [intra-doc links] in Rust projects when appropriate.
 
 > Note: you will need you need beta/nightly rustdoc or to wait until
-> stabilization of intra-doc links, which is underway for **1.48.0** !
->
-> This crate can still be used to help updating the documentation for
-> `rust-lang/rust` itself and it is its intended usage right now. You can
-> also use it for projects depending on beta/nightly.
+> stabilization of intra-doc links, which makes them available in **1.48.0** !
 
 [intra-doc links]: https://doc.rust-lang.org/nightly/rustdoc/unstable-features.html#linking-to-items-by-type
 
