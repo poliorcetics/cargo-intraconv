@@ -11,8 +11,8 @@ use std::path::PathBuf;
 /// By default it will only print the changes and not apply them, use `-a`
 /// (`--apply`) to write them.
 ///
-/// If you are modifying `core` or `alloc` instead of `std`, you can pass the
-/// `-c core` (`--crate core`) to mark the change in the root crate.
+/// If you are modifying `std` or `core` instead of `my_krate`, you can pass
+/// the `-c core` (`--crate core`) to mark the change in the root crate.
 ///
 /// By default the crate will output the changes it will do (or did when `-a`
 /// is passed). If this is not what you want, use the `-q` (`--quiet`) flag
@@ -24,24 +24,31 @@ use std::path::PathBuf;
 ///
 /// When `-q` is not given, only files with changes will be displayed.
 #[derive(FromArgs, Debug, Clone)]
-pub struct Args {
+pub struct CliArgs {
     /// prints the crate version and exit.
     #[argh(switch)]
     pub version: bool,
 
-    /// root crate (examples: `std`, `core`, `my_crate`, ...).
+    /// root crate (examples: `std`, `core`, `my_crate`, ...). Defaults of
+    /// `my_krate` to conflict as little as possible with a real crate name.
     #[argh(
         option,
         long = "crate",
         short = 'c',
         from_str_fn(check_krate),
-        default = "\"std\".into()"
+        default = "\"my_krate\".into()"
     )]
     pub krate: String,
 
     /// apply the proposed changes.
     #[argh(switch, short = 'a')]
     pub apply: bool,
+
+    /// config file to ignore some links when processing the files. See the
+    /// README at https://github.com/poliorcetics/cargo-intraconv for an
+    /// example of it.
+    #[argh(option, long = "--ignore-file", short = 'i')]
+    pub config_file: Option<PathBuf>,
 
     /// use rustdoc disambiguators in front of the transformed links
     /// ('type@', ...). Ending disambiguators like '()' and '!' are always
