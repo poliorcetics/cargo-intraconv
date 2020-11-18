@@ -99,7 +99,7 @@ use the `-f` (`--no-favored`) flag.
 ### Ignoring links
 
 `cargo-intraconv` is not perfect and will sometimes wrongly transform links,
-as in #31. To fix that you can either do it manually if you run it only once
+as in [#31]. To fix that you can either do it manually if you run it only once
 but if you start to run it several times because the changes are significative
 it will quickly become repetitive and error-prone. For a tool designed to
 reduce repetitive and error prone work, this is a sad thing !
@@ -129,6 +129,8 @@ To fix this, you can write a file in the TOML format with links to ignore:
 ["lib.rs"]
 "`downcast_ref`" = [ "#method.downcast_ref" ]
 ```
+
+[#31]: https://github.com/poliorcetics/cargo-intraconv/issues/31
 
 ## Known issues
 

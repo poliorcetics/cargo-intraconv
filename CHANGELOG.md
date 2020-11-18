@@ -18,6 +18,8 @@
   produces something of the form `[name](name)`.
 - Type blocks are never added before a lone section. This means a link like
   `[name]: #section` will never change.
+- Add an option to ignore some links through a file, either for all visited
+  files or for some specific files.
 
 ## Internals
 
