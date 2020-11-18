@@ -1,11 +1,14 @@
-mod args;
-use args::Args;
+mod cli_args;
+use cli_args::CliArgs;
 
 mod action;
 use action::Action;
 
 mod candidate;
 use candidate::Candidate;
+
+mod config_file;
+use config_file::{FileConfig, RawFileConfig};
 
 mod consts;
 use consts::*;
@@ -29,14 +32,54 @@ use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Write as _};
 use std::path::Path;
 
-/// Takes an `Args` instance to transform the paths it contains accordingly
+/// Takes an `CliArgs` instance to transform the paths it contains accordingly
 /// with its stored parameters.
-pub fn run(args: Args) {
+pub fn run(args: CliArgs) {
+    // TODO(poliorcetics): implement argh::FromArgs manually to handle this
+    // case better as well as well as the look of the help messages. Using
+    // `cargo-expand` to start from the existing derived implementation is
+    // probably the fastest solution.
     if args.version {
-        println!("cargo-intraconv {}", std::env!("CARGO_PKG_VERSION"));
+        println!(
+            "{} {}",
+            std::env!("CARGO_PKG_NAME"),
+            std::env!("CARGO_PKG_VERSION")
+        );
         return;
     }
 
+    let start_dir = code_error!(1, env::current_dir(), "Failed to get current directory");
+
+    let file_config: FileConfig = if let Some(conf_file) = &args.config_file {
+        let cf = code_error!(
+            1,
+            std::fs::read(conf_file),
+            "Failed to read the given configuration file"
+        );
+        let content = code_error!(
+            1,
+            String::from_utf8(cf),
+            "The given configuration file is not readable as UTF-8"
+        );
+        let fc: RawFileConfig = code_error!(
+            1,
+            toml::from_str(&content),
+            "Failed to parse the content of the configuration file"
+        );
+        code_error!(
+            1,
+            fc.finish(),
+            "Failed to canonicalize a path from the configuration file, \
+            check it is correct when starting from the directory on which \
+            you called `{}` ({})",
+            std::env!("CARGO_PKG_NAME"),
+            start_dir.display(),
+        )
+    } else {
+        Default::default()
+    };
+
+    // TODO(poliorcetics): better file/crate-name discovery.
     let mut true_args = args.clone();
     true_args.paths = vec![];
 
@@ -48,8 +91,6 @@ pub fn run(args: Args) {
             .map(|p| (p, true_args.krate.clone()))
             .collect()
     };
-
-    let start_dir = code_error!(1, env::current_dir(), "Failed to get current directory");
 
     let mut visited = ::std::collections::HashSet::new();
 
@@ -63,7 +104,7 @@ pub fn run(args: Args) {
         true_args.krate = krate;
 
         if !path.is_dir() {
-            run_for_file(&path, &true_args);
+            run_for_file(&path, &true_args, &file_config);
         } else {
             code_error!(
                 1,
@@ -76,6 +117,7 @@ pub fn run(args: Args) {
                 run_for_file(
                     &continue_error!(file, "Failed to access a file in '{:?}'", &path),
                     &true_args,
+                    &file_config,
                 );
             }
 
@@ -89,7 +131,7 @@ pub fn run(args: Args) {
     }
 }
 
-fn run_for_file(path: &Path, args: &Args) {
+fn run_for_file(path: &Path, args: &CliArgs, file_config: &FileConfig) {
     if path.as_os_str() == "intraconv" && !path.exists() {
         return;
     }
@@ -105,6 +147,8 @@ fn run_for_file(path: &Path, args: &Args) {
         krate,
         disambiguate: args.disambiguate,
         favored_links: !args.no_favored,
+        ignored_links: file_config,
+        current_path: &path,
     };
 
     let display_changes = !args.quiet;
