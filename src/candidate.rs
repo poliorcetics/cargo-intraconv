@@ -19,16 +19,16 @@ impl<'a> Candidate<'a> {
     ///
     /// When the line cannot be an intra-doc link candidate the passed line is
     /// returned in the `Result::Err` variant.
-    pub fn from_line<S>(line: &'a S) -> Result<Self, &'a S>
+    pub fn from_line<S>(line: &'a S) -> Option<Self>
     where
         S: AsRef<OsStr> + ?Sized + 'a,
     {
         let inner = Candidates::from_line(line)?;
-        Ok(Self { inner })
+        Some(Self { inner })
     }
-    /// Apply the transformation based on the given context.
 
-    pub fn transform(self, ctx: &crate::ConversionContext) -> Result<String, &'a OsStr> {
+    /// Apply the transformation based on the given context.
+    pub fn transform(self, ctx: &crate::ConversionContext) -> Option<String> {
         self.inner.transform(ctx)
     }
 }
@@ -56,11 +56,10 @@ enum Candidates<'a> {
 }
 
 impl<'a> Candidates<'a> {
-    fn from_line<S>(line: &'a S) -> Result<Self, &'a S>
-    where
+    fn from_line<S>(line: &'a S) -> Option<Self> where
         S: AsRef<OsStr> + ?Sized + 'a,
     {
-        let string = line.as_ref().to_str().ok_or(line)?;
+        let string = line.as_ref().to_str()?;
         if let Some(captures) = crate::LINK_TO_TREAT_LONG.captures(string) {
             let header = captures
                 .name("header")
@@ -75,32 +74,42 @@ impl<'a> Candidates<'a> {
 
             // Absolute paths cannot be intra-doc links.
             if link.is_absolute() {
-                Err(line)
+                None
             } else {
-                Ok(Self::Long { header, link })
+                Some(Self::Long { header, link })
             }
         } else if crate::LINK_TO_TREAT_SHORT.is_match(string) {
-            Ok(Self::Short { orig: string })
+            Some(Self::Short { orig: string })
         } else {
-            Err(line)
+            None
         }
     }
 
-    fn transform(self, ctx: &crate::ConversionContext) -> Result<String, &'a OsStr> {
+    fn transform(self, ctx: &crate::ConversionContext) -> Option<String> {
         match self {
             Self::Long { header, link } => {
-                let parts = crate::link_parts::link_parts(link, ctx.options())?;
+                if ctx.options().is_ignored(header, link) {
+                    return None;
+                }
+
+                let parts = crate::link_parts::link_parts(link, ctx.options()).ok()?;
                 let link = parts.transform(ctx);
-                Ok(format!("{h}{l}", h = header, l = link))
+                Some(format!("{h}{l}", h = header, l = link))
             }
             Self::Short { orig } => {
                 let replaced =
                     crate::LINK_TO_TREAT_SHORT.replace_all(orig, |cap: &regex::Captures| {
+                        let header = cap.name("header").expect("'header' group missing").as_str();
+                        let link =
+                            Path::new(cap.name("link").expect("'link' group missing").as_str());
+
+                        if ctx.options().is_ignored(header, link) {
+                            return cap.get(0).unwrap().as_str().to_string();
+                        }
+
                         let name = cap.name("name").expect("'name' group missing").as_str();
                         let c1 = cap.name("c1").map(|x| x.as_str()).unwrap_or("");
                         let c2 = cap.name("c2").map(|x| x.as_str()).unwrap_or("");
-                        let link =
-                            Path::new(cap.name("link").expect("'link' group missing").as_str());
 
                         if link.is_absolute() {
                             // UNWRAP: full match is always successul if a Captures
@@ -124,7 +133,7 @@ impl<'a> Candidates<'a> {
                         res
                     });
 
-                Ok(replaced.into_owned())
+                Some(replaced.into_owned())
             }
         }
     }
@@ -266,7 +275,7 @@ fn candidate_from_line_ok_long() {
 #[test]
 fn candidate_from_line_err() {
     fn helper(line: &str) {
-        assert_eq!(line, Candidate::from_line(line).unwrap_err());
+        assert!(Candidate::from_line(line).is_none());
     }
 
     helper("not a link");
