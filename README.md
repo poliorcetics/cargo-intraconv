@@ -9,8 +9,10 @@
 
 > Note: you will need you need beta/nightly rustdoc or to wait until
 > stabilization of intra-doc links, which makes them available in **1.48.0** !
+> See the [blog post] announcing it for more informations.
 
 [intra-doc links]: https://doc.rust-lang.org/nightly/rustdoc/unstable-features.html#linking-to-items-by-type
+[blog post]: https://blog.rust-lang.org/2020/11/19/Rust-1.48.html
 
 ## What are intra-doc links ?
 
@@ -153,6 +155,12 @@ It is **not** an official tool and the way it works right now is based on regexe
 This approach means it is simple to understand but it has several drawbacks.
 For example `cargo-intraconv` is not aware of `use`s and will happily ignore them,
 even when they could shorten or remove links.
+
+## See Also
+
+[`cargo-deadlinks`](https://github.com/deadlinks/cargo-deadlinks) is another
+tool for documentation and links. It works very well in conjunction with
+`cargo-intraconv` !
 
 ## Contributing
 
