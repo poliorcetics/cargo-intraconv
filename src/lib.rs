@@ -1,29 +1,21 @@
-mod cli_args;
-use cli_args::CliArgs;
-
 mod action;
-use action::Action;
-
 mod candidate;
-use candidate::Candidate;
-
+mod cli_args;
 mod config_file;
-use config_file::{FileConfig, RawFileConfig};
-
 mod consts;
-use consts::*;
-
 #[macro_use]
 mod error;
-
 mod file_finder;
-
 mod link_parts;
-
 mod options;
-use options::{ConversionOptions, Krate};
-
 mod transform;
+
+use action::Action;
+use candidate::Candidate;
+use cli_args::CliArgs;
+use config_file::{FileConfig, RawFileConfig};
+use consts::*;
+use options::{ConversionOptions, Krate};
 use transform::ConversionContext;
 
 use std::env;
