@@ -1,3 +1,8 @@
+# Version ?.?.? - ????-??-??
+
+- `index.html#section` now correctly always link to `self`, not the current
+  page.
+
 # Version 1.2.0 - 2020-11-19
 
 - Added more favored links pattern for `docs.rs`: `https://docs.rs/crate-1`
