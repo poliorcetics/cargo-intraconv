@@ -1,4 +1,4 @@
-# Version ?.?.? - ????-??-??
+# Version 1.3.0 - 2020-11-25
 
 - `index.html#section` now correctly always link to `self`, not the current
   page (#34).

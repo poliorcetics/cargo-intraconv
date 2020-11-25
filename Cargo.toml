@@ -1,6 +1,6 @@
 [package]
 name = "cargo-intraconv"
-version = "1.2.0"
+version = "1.3.0"
 authors = ["Alexis Bourget <alexis.bourget@gmail.com>"]
 edition = "2018"
 description = "A simple helper to transform Markdown links to intra-doc links in Rust projects when appropriate."

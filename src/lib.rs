@@ -75,7 +75,7 @@ pub fn run(mut args: CliArgs) {
     )
     .name()
     .to_string();
-    
+
     if args.paths.is_empty() || args.paths == &[Path::new("intraconv")] {
         args.paths.push(Path::new(".").into());
     }
