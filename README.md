@@ -33,6 +33,7 @@ targeted item and what's in scope (which means items like `String` which are in
 the prelude are just a `[String]` away). Those links are clearer for both
 the person writing them in the first place and subsequent readers reviewing them.
 They are also easier to reason about since file hierachy does not affect them.
+Below is the intra-doc links version of the examples above:
 
 ```rust
 /// [`make_ascii_uppercase`]: u8::make_ascii_uppercase()
@@ -83,7 +84,11 @@ $ cargo intraconv path/to/my/file.rs -i intraconv.toml # Give a file containing
                                                        # links to ignore 
 ```
 
-It is possible to give multiple paths to files or directories.
+It is possible to give multiple paths to files or directories. When searching
+exact paths, `cargo-intraconv` will use the crate name given with `-c`. For
+directories it will try to find the crate name in a `Cargo.toml`, falling back
+to the default of `-c` if the name cannot be transformed to a valid Rust
+identifier.
 
 > Note: `intraconv` will accept any file, no just `.rs` ones: you can use it
 > on markdown files that are included as docs in Rust files for example.
@@ -137,15 +142,11 @@ should be adressed in future versions of either the crate or Rust itself.
 
 For issues about intra-doc links you should look-up [the issues at `rust-lang/rust`].
 
-For issues about this crate, here are a few:
+For issues about this crate, here is one:
 
   - `#method.method_name` links will sometimes be transformed to point to the
     wrong item. This is because `intraconv` uses regexes to find links and the
     types related to them, which is not perfect.
-  - Crate names are not detected very well at the moment and if you don't use
-    `--crate` (`-c`) will sometime fail in strange ways. Be sure to check !
-    By default `cargo-intraconv` will use `my_krate` to avoid false `crate::`
-    replacements.
 
 [the issues at `rust-lang/rust`]: https://github.com/rust-lang/rust/issues?q=is%3Aopen+label%3AA-intra-doc-links+label%3AC-bug
 
