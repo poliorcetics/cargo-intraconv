@@ -561,6 +561,11 @@ fn module_parts<'a>(path: &'a Path, krate: &Krate) -> Option<LinkParts<'a>> {
                 name: name.as_str().into(),
                 section: Some(Section { name: section }),
             }
+        } else if last.starts_with("index.html") && path.components().count() == 1 {
+            End::Module {
+                name: "self".into(),
+                section: Some(Section { name: section }),
+            }
         } else {
             End::Section(Section { name: section })
         }

@@ -1877,6 +1877,7 @@ const TEST_TRANSFORM_VALUES: &[(&str, &str, &str)] = &[
     ("#0ection.a", "#0ection.a", "#0ection.a"),
     ("#_ection.a", "#_ection.a", "#_ection.a"),
     ("krate/#section", "crate#section", "crate#section"),
+    ("index.html#section", "mod@self#section", "self#section"),
     ("../krate/#section", "crate#section", "crate#section"),
     ("mod1/#section", "mod1#section", "mod1#section"),
     (
