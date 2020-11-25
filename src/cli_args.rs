@@ -66,7 +66,9 @@ pub struct CliArgs {
     #[argh(switch, short = 'q')]
     pub quiet: bool,
 
-    /// files to search links in.
+    /// files to search links in. Directories will use the crate name from the
+    /// Cargo.toml file when possible, exact paths will use the name given
+    /// with the `-c` option.
     #[argh(positional)]
     pub paths: Vec<PathBuf>,
 }
