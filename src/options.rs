@@ -42,7 +42,7 @@ impl<'cf> ConversionOptions<'cf> {
 }
 
 /// A valid Rust identifier for a crate.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Krate(String);
 
 impl Krate {
