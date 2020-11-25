@@ -120,16 +120,7 @@ pub fn run(args: CliArgs) {
 }
 
 fn run_for_file(path: &Path, args: &CliArgs, file_config: &FileConfig) {
-    if path.as_os_str() == "intraconv" && !path.exists() {
-        return;
-    }
-
-    let path = return_error!(path.canonicalize(), "Failed to canonicalize path");
-    let krate = return_error!(
-        Krate::new(&args.krate).ok_or("Not a valid Rust identifier"),
-        "Invalid crate name: '{}'",
-        args.krate
-    );
+    let krate = Krate::new(&args.krate).expect("Not a valid Rust identifier");
 
     let opts = ConversionOptions {
         krate,
@@ -166,9 +157,12 @@ fn run_for_file(path: &Path, args: &CliArgs, file_config: &FileConfig) {
 
     // Only display the filename when -q is not set and there are changes.
     if display_changes && actions.iter().any(|a| !a.is_unchanged()) {
-        println!("{}", &path_display);
-        // TODO: Not always perfect because of unicode, fix this.
-        println!("{}\n", "=".repeat(path_display.len()));
+        println!(
+            "{}: {}\n{}\n",
+            &args.krate,
+            &path_display,
+            "=".repeat(args.krate.len() + 1)
+        );
     }
 
     // Display the changes that can be made.
