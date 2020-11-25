@@ -91,8 +91,6 @@ dependencies = [
  "lazy_static",
  "regex",
  "serde",
- "serde_derive",
- "serde_json",
  "toml",
 ]
 
