@@ -27,10 +27,6 @@ use std::path::Path;
 /// Takes an `CliArgs` instance to transform the paths it contains accordingly
 /// with its stored parameters.
 pub fn run(args: CliArgs) {
-    // TODO(poliorcetics): implement argh::FromArgs manually to handle this
-    // case better as well as well as the look of the help messages. Using
-    // `cargo-expand` to start from the existing derived implementation is
-    // probably the fastest solution.
     if args.version {
         println!(
             "{} {}",
