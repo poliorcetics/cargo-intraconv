@@ -26,7 +26,7 @@ use std::path::Path;
 
 /// Takes an `CliArgs` instance to transform the paths it contains accordingly
 /// with its stored parameters.
-pub fn run(args: CliArgs) {
+pub fn run(mut args: CliArgs) {
     if args.version {
         println!(
             "{} {}",
@@ -67,54 +67,69 @@ pub fn run(args: CliArgs) {
         Default::default()
     };
 
-    // TODO(poliorcetics): better file/crate-name discovery.
-    let mut true_args = args.clone();
-    true_args.paths = vec![];
+    let default_crate = code_error!(
+        1,
+        Krate::new(&args.krate).ok_or("Invalid Rust identifier"),
+        "Invalid crate name: '{}'",
+        &args.krate
+    )
+    .name()
+    .to_string();
+    
+    if args.paths.is_empty() || args.paths == &[Path::new("intraconv")] {
+        args.paths.push(Path::new(".").into());
+    }
 
-    let paths = if args.paths.is_empty() || args.paths == [Path::new("intraconv")] {
-        file_finder::determine_dir()
-    } else {
-        args.paths
-            .into_iter()
-            .map(|p| (p, true_args.krate.clone()))
-            .collect()
-    };
+    let mut paths = args.paths.iter();
 
-    let mut visited = ::std::collections::HashSet::new();
+    if args
+        .paths
+        .iter()
+        .next()
+        .map_or(false, |p| p.as_os_str() == "intraconv")
+    {
+        paths.next();
+    }
 
-    for (path, krate) in paths {
-        if visited.contains(&path) {
-            continue;
-        } else {
-            visited.insert(path.clone());
-        }
-
-        true_args.krate = krate;
-
-        if !path.is_dir() {
-            run_for_file(&path, &true_args, &file_config);
-        } else {
-            code_error!(
-                1,
-                env::set_current_dir(&path),
-                "Failed to set current directory to '{:?}'",
-                path
-            );
-
-            for file in glob::glob("**/*.rs").unwrap() {
-                run_for_file(
-                    &continue_error!(file, "Failed to access a file in '{:?}'", &path),
-                    &true_args,
-                    &file_config,
+    for path in paths {
+        if path.is_dir() {
+            for (maybe_crate_id, src_dir) in file_finder::crate_and_src() {
+                code_error!(
+                    1,
+                    env::set_current_dir(&start_dir),
+                    "Failed to set current directory back to '{:?}'",
+                    start_dir
                 );
-            }
+                match Krate::new(&maybe_crate_id) {
+                    Some(_) => args.krate = maybe_crate_id,
+                    None => {
+                        eprintln!(
+                            "Invalid crate identifier '{}', using the default '{}'",
+                            maybe_crate_id, &default_crate
+                        );
+                        args.krate = default_crate.clone();
+                    }
+                }
+                code_error!(
+                    1,
+                    env::set_current_dir(&src_dir),
+                    "Failed to set current directory to '{:?}'",
+                    src_dir
+                );
 
-            code_error!(
-                1,
-                env::set_current_dir(&start_dir),
-                "Failed to set current directory to '{:?}'",
-                path
-            );
+                for file in glob::glob("**/*.rs").unwrap() {
+                    run_for_file(
+                        &continue_error!(&file, "Failed to access '{:?}' in '{:?}'", &file, &path),
+                        &args,
+                        &file_config,
+                    );
+                }
+            }
+        } else {
+            if args.krate != default_crate {
+                args.krate = default_crate.clone();
+            }
+            run_for_file(&path, &args, &file_config);
         }
     }
 }
