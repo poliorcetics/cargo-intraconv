@@ -1,7 +1,8 @@
 # Version ?.?.? - ????-??-??
 
 - `index.html#section` now correctly always link to `self`, not the current
-  page.
+  page (#34).
+- Correctly detect crate names when given a directory (#31).
 
 # Version 1.2.0 - 2020-11-19
 
