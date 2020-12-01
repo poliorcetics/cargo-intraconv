@@ -20,10 +20,9 @@ Previously the only way to write links to other elements of your crate (or other
 crates) was the following, the path depending on the current and target files:
 
 ```rust
-// In the `u8` impl in `core`
 /// [`make_ascii_uppercase`]: #method.make_ascii_uppercase
 
-/// [`f32::classify`]: ../../std/primitive.f32.html#method.classify
+/// [`Path::ancestors`]: https://doc.rust-lang.org/stable/std/path/struct.Path.html#method.ancestors
 
 /// See [the `Rotation` type](../struct.Rotation.html)
 ```
@@ -38,7 +37,7 @@ Below is the intra-doc links version of the examples above:
 ```rust
 /// [`make_ascii_uppercase`]: u8::make_ascii_uppercase()
 
-/// [`f32::classify`]: std::f32::classify()
+/// [`Path::ancestors`]: std::path::Path::ancestors()
 
 /// See [the `Rotation` type](super::Rotation)
 ```
