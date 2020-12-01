@@ -1,3 +1,9 @@
+# Version ?.?.? - ????-??-??
+
+- Ignore `primitive.Type.html` links since transforming them is wrong most of
+  the time (#35).
+- Fix: use `--ignore-file` instead of `----ignore-file`.
+
 # Version 1.3.0 - 2020-11-25
 
 - `index.html#section` now correctly always link to `self`, not the current
