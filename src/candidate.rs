@@ -366,6 +366,48 @@ fn candidate_transform() {
     }
 }
 
+#[test]
+fn do_not_transform_primitive() {
+    use crate::ConversionContext;
+
+    let long_primitive_links = [
+        "[`Link`]: primitive.Type.html",
+        "[`Link`]: primitive.Type.html#method.call",
+        "[`Link`]: primitive.Type.html#section-name",
+        "[`Link`]: ./primitive.Type.html",
+        "[`Link`]: ../primitive.Type.html",
+        "[`Link`]: ../mod1/mod2/primitive.Type.html",
+    ];
+
+    let short_primitive_links = [
+        "[`Link`](primitive.Type.html)",
+        "[`Link`](primitive.Type.html#method.call)",
+        "[`Link`](primitive.Type.html#section-name)",
+        "[`Link`](./primitive.Type.html)",
+        "[`Link`](../primitive.Type.html)",
+        "[`Link`](../mod1/mod2/primitive.Type.html)",
+    ];
+
+    // Both contexts can transform favored links, for a context that cannot
+    // see `test_link_parts`.
+    let ctx_dis = ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
+    let ctx_no_dis = ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+
+    for value in long_primitive_links.iter() {
+        let candidate = Candidate::from_line(value).unwrap();
+        assert!(candidate.transform(&ctx_dis).is_none());
+        let candidate = Candidate::from_line(value).unwrap();
+        assert!(candidate.transform(&ctx_no_dis).is_none());
+    }
+
+    for &value in short_primitive_links.iter() {
+        let candidate = Candidate::from_line(value).unwrap();
+        assert_eq!(value, candidate.transform(&ctx_dis).unwrap());
+        let candidate = Candidate::from_line(value).unwrap();
+        assert_eq!(value, candidate.transform(&ctx_no_dis).unwrap());
+    }
+}
+
 #[cfg(test)]
 const VALID_LONG_LINKS: &[(&str, &str, &str)] = &[
     (
@@ -1076,36 +1118,6 @@ const VALID_LONG_LINKS: &[(&str, &str, &str)] = &[
     (
         "[`Link`]: ../mod1/mod2/opaque.Type.html",
         "[`Link`]: super::mod1::mod2::Type",
-        "[`Link`]: super::mod1::mod2::Type",
-    ),
-    (
-        "[`Link`]: primitive.Type.html",
-        "[`Link`]: prim@Type",
-        "[`Link`]: Type",
-    ),
-    (
-        "[`Link`]: primitive.Type.html#method.call",
-        "[`Link`]: Type::call()",
-        "[`Link`]: Type::call()",
-    ),
-    (
-        "[`Link`]: primitive.Type.html#section-name",
-        "[`Link`]: prim@Type#section-name",
-        "[`Link`]: Type#section-name",
-    ),
-    (
-        "[`Link`]: ./primitive.Type.html",
-        "[`Link`]: prim@Type",
-        "[`Link`]: Type",
-    ),
-    (
-        "[`Link`]: ../primitive.Type.html",
-        "[`Link`]: prim@super::Type",
-        "[`Link`]: super::Type",
-    ),
-    (
-        "[`Link`]: ../mod1/mod2/primitive.Type.html",
-        "[`Link`]: prim@super::mod1::mod2::Type",
         "[`Link`]: super::mod1::mod2::Type",
     ),
     (
@@ -2126,36 +2138,6 @@ const VALID_SHORT_LINKS: &[(&str, &str, &str)] = &[
     (
         "[`Link`](../mod1/mod2/opaque.Type.html)",
         "[`Link`](super::mod1::mod2::Type)",
-        "[`Link`](super::mod1::mod2::Type)",
-    ),
-    (
-        "[`Link`](primitive.Type.html)",
-        "[`Link`](prim@Type)",
-        "[`Link`](Type)",
-    ),
-    (
-        "[`Link`](primitive.Type.html#method.call)",
-        "[`Link`](Type::call())",
-        "[`Link`](Type::call())",
-    ),
-    (
-        "[`Link`](primitive.Type.html#section-name)",
-        "[`Link`](prim@Type#section-name)",
-        "[`Link`](Type#section-name)",
-    ),
-    (
-        "[`Link`](./primitive.Type.html)",
-        "[`Link`](prim@Type)",
-        "[`Link`](Type)",
-    ),
-    (
-        "[`Link`](../primitive.Type.html)",
-        "[`Link`](prim@super::Type)",
-        "[`Link`](super::Type)",
-    ),
-    (
-        "[`Link`](../mod1/mod2/primitive.Type.html)",
-        "[`Link`](prim@super::mod1::mod2::Type)",
         "[`Link`](super::mod1::mod2::Type)",
     ),
     (
