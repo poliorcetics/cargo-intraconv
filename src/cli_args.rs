@@ -47,7 +47,7 @@ pub struct CliArgs {
     /// config file to ignore some links when processing the files. See the
     /// README at https://github.com/poliorcetics/cargo-intraconv for an
     /// example of it.
-    #[argh(option, long = "--ignore-file", short = 'i')]
+    #[argh(option, long = "ignore-file", short = 'i')]
     pub config_file: Option<PathBuf>,
 
     /// use rustdoc disambiguators in front of the transformed links
