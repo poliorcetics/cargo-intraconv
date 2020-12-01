@@ -161,7 +161,8 @@ impl From<&'_ str> for Disambiguator {
             "struct" | "enum" | "trait" | "union" | "type" => Self::Prefix("type@"),
             "const" | "static" | "value" => Self::Prefix("value@"),
             "derive" | "attr" => Self::Prefix("macro@"),
-            "primitive" => Self::Prefix("prim@"),
+            // See consts.rs for more information on this being commented out.
+            // "primitive" => Self::Prefix("prim@"),
             "mod" => Self::Prefix("mod@"),
             "fn" | "method" => Self::Suffix("()"),
             "macro" => Self::Suffix("!"),

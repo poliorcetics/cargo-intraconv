@@ -1304,7 +1304,8 @@ fn disambiguate_from() {
     assert_eq!(Prefix("macro@"), Disambiguator::from("derive"));
     assert_eq!(Prefix("macro@"), Disambiguator::from("attr"));
 
-    assert_eq!(Prefix("prim@"), Disambiguator::from("primitive"));
+    // See consts.rs for the rationale.
+    assert_eq!(Empty, Disambiguator::from("primitive"));
 
     assert_eq!(Prefix("mod@"), Disambiguator::from("mod"));
 
@@ -1758,6 +1759,28 @@ fn test_link_parts_transform() {
     }
 }
 
+#[test]
+fn do_not_transform_primitive() {
+    use crate::ConversionContext;
+
+    let primitive_links = [
+        "primitive.Type.html",
+        "primitive.Type.html#method.call",
+        "primitive.Type.html#section-name",
+        "./primitive.Type.html",
+        "../primitive.Type.html",
+        "../mod1/mod2/primitive.Type.html",
+    ];
+
+    let ctx_dis = ConversionContext::with_options(crate::OPTS_KRATE_DIS_AND_FAV.clone());
+    let ctx_no_dis = ConversionContext::with_options(crate::OPTS_KRATE_NO_DIS_BUT_FAV.clone());
+
+    for link in primitive_links.iter() {
+        assert!(link_parts(Path::new(link), ctx_dis.options()).is_err());
+        assert!(link_parts(Path::new(link), ctx_no_dis.options()).is_err());
+    }
+}
+
 const TEST_TRANSFORM_VALUES: &[(&str, &str, &str)] = &[
     (
         "https://docs.rs/krate-name/1.2.3/krate/struct.Type.html",
@@ -2160,24 +2183,6 @@ const TEST_TRANSFORM_VALUES: &[(&str, &str, &str)] = &[
     (
         "../mod1/mod2/opaque.Type.html",
         "super::mod1::mod2::Type",
-        "super::mod1::mod2::Type",
-    ),
-    ("primitive.Type.html", "prim@Type", "Type"),
-    (
-        "primitive.Type.html#method.call",
-        "Type::call()",
-        "Type::call()",
-    ),
-    (
-        "primitive.Type.html#section-name",
-        "prim@Type#section-name",
-        "Type#section-name",
-    ),
-    ("./primitive.Type.html", "prim@Type", "Type"),
-    ("../primitive.Type.html", "prim@super::Type", "super::Type"),
-    (
-        "../mod1/mod2/primitive.Type.html",
-        "prim@super::mod1::mod2::Type",
         "super::mod1::mod2::Type",
     ),
     ("static.Type.html", "value@Type", "Type"),
