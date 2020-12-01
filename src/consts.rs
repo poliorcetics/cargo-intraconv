@@ -19,7 +19,9 @@ pub const ALL_ITEM_TYPES: &[&str] = &[
     "method",
     "mod",
     "opaque",
-    "primitive",
+    // Here for completeness but transforming primitive items is a risky
+    // business and more often than not leads to invalid intradoc links.
+    // "primitive",
     "static",
     "struct",
     "structfield",
