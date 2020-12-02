@@ -38,12 +38,24 @@ pub fn run(mut args: CliArgs) {
 
     let start_dir = code_error!(1, env::current_dir(), "Failed to get current directory");
 
-    let file_config: FileConfig = if let Some(conf_file) = &args.config_file {
-        let cf = code_error!(
+    let file_config = if let Some(conf_file) = &args.config_file {
+        let conf_file = code_error!(
             1,
             std::fs::read(conf_file),
             "Failed to read the given configuration file"
         );
+        Some(conf_file)
+    } else if let Ok(conf_file) = std::fs::read("intraconv.toml") {
+        // Errors are silently ignored when **opening and reading** the default
+        // configuration file. THIS IS VOLUNTARY so that `cargo-intraconv` does
+        // not produce an error when it is not present because the user does
+        // not want/need one.
+        Some(conf_file)
+    } else {
+        None
+    };
+
+    let file_config: FileConfig = if let Some(cf) = file_config {
         let content = code_error!(
             1,
             String::from_utf8(cf),
