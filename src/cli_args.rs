@@ -46,7 +46,8 @@ pub struct CliArgs {
 
     /// config file to ignore some links when processing the files. See the
     /// README at https://github.com/poliorcetics/cargo-intraconv for an
-    /// example of it.
+    /// example of it. When not provided, will try to read `intraconv.toml` by
+    /// default (will do nothing is not present).
     #[argh(option, long = "ignore-file", short = 'i')]
     pub config_file: Option<PathBuf>,
 

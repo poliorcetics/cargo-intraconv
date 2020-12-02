@@ -1,9 +1,10 @@
-# Version ?.?.? - ????-??-??
+# Version 1.4.0 - 2020-12-02
 
 - Read `intraconv.toml` by default when no ignore file is given (#36).
+- Correctly detect ignored links for long links (#38).
 - Ignore `primitive.Type.html` links since transforming them is wrong most of
   the time (#35).
-- Fix: use `--ignore-file` instead of `----ignore-file`.
+- Fix: use `--ignore-file` instead of `----ignore-file` (#37).
 
 # Version 1.3.0 - 2020-11-25
 
