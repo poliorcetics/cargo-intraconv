@@ -7,9 +7,8 @@
 `cargo-intraconv` is a simple helper which will transform Markdown links to
 [intra-doc links] in Rust projects when appropriate.
 
-> Note: you will need you need beta/nightly rustdoc or to wait until
-> stabilization of intra-doc links, which makes them available in **1.48.0** !
-> See the [blog post] announcing it for more informations.
+Intra-doc links have been stabilized in Rust **1.48.0**, see the [blog post]
+annoucing it for more information.
 
 [intra-doc links]: https://doc.rust-lang.org/nightly/rustdoc/unstable-features.html#linking-to-items-by-type
 [blog post]: https://blog.rust-lang.org/2020/11/19/Rust-1.48.html
