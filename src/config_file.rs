@@ -27,11 +27,12 @@ pub struct RawFileConfig {
     /// ```toml
     /// # Canonicalized to match exactly
     /// ["tracing/src/lib.rs"]
-    /// "`downcast_ref`" = [ "#method.downcast_ref", ]
+    /// # Will match both 'downcast_ref' and '`downcast_ref`' links.
+    /// "downcast_ref" = [ "#method.downcast_ref", ]
     ///
     /// # Not canonicalized, suffix check
     /// ["lib.rs"]
-    /// "`downcast_ref`" = [ "#method.downcast_ref", ]
+    /// "downcast_ref" = [ "#method.downcast_ref", ]
     /// ```
     #[serde(flatten)]
     per_file: HashMap<PathBuf, HashMap<String, BTreeSet<PathBuf>>>,
@@ -77,5 +78,8 @@ impl RawFileConfig {
 
 #[inline]
 fn contains_ignored(map: &HashMap<String, BTreeSet<PathBuf>>, name: &str, value: &Path) -> bool {
+    // This will help match links that are also code blocks.
+    let name = name.trim_matches('`');
+
     map.get(name).map_or(false, |values| values.contains(value))
 }

@@ -138,12 +138,22 @@ To fix this, you can write a file in the TOML format with links to ignore:
 # Paths must be unique whether canonicalized (for paths with more than one
 # component) or not (paths with a single component, as `lib.rs` below).
 ["tracing-core/src/lib.rs"]
-"`downcast_ref`" = [ "#method.downcast_ref" ] # Must be an array.
+# Will match both 'downcast_ref' and '`downcast_ref`' links.
+"downcast_ref" = [ "#method.downcast_ref" ] # Must be an array.
 
 # Will match EVERY lib.rs file found.
 ["lib.rs"]
-"`downcast_ref`" = [ "#method.downcast_ref" ]
+"downcast_ref" = [ "#method.downcast_ref" ]
 ```
+
+Using backticks (`` ` ``) around the link names is **not** supported: this will
+never match any links:
+
+````toml
+[ignore]
+# NEVER matches.
+"`downcast_ref`" = [ "#method.downcast_ref" ]
+````
 
 [#31]: https://github.com/poliorcetics/cargo-intraconv/issues/31
 
