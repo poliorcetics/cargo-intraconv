@@ -40,6 +40,10 @@ enum CandidateInner<'a> {
         /// to the final `\s` character before the start of the link itself.
         header: &'a str,
 
+        /// Name of the link. This is a subset of the header used to check
+        /// if the link is ignored or not.
+        name: &'a str,
+
         /// The backing link, seen as a path.
         ///
         /// Seeing it as a path (even when its a URL) will help with detection of
@@ -66,6 +70,10 @@ impl<'a> CandidateInner<'a> {
                 .name("header")
                 .expect("'header' group missing")
                 .as_str();
+            let name = captures
+                .name("name")
+                .expect("'name' group missing")
+                .as_str();
             let link = Path::new(
                 captures
                     .name("link")
@@ -77,9 +85,11 @@ impl<'a> CandidateInner<'a> {
             if link.is_absolute() {
                 None
             } else {
-                Some(Self::Long { header, link })
+                Some(Self::Long { header, name, link })
             }
         } else if crate::LINK_TO_TREAT_SHORT.is_match(string) {
+            // Since several short links can appear in a single line, the whole
+            // line is saved and it will be parsed later, link by link.
             Some(Self::Short { orig: string })
         } else {
             None
@@ -88,8 +98,8 @@ impl<'a> CandidateInner<'a> {
 
     fn transform(self, ctx: &crate::ConversionContext) -> Option<String> {
         match self {
-            Self::Long { header, link } => {
-                if ctx.options().is_ignored(header, link) {
+            Self::Long { header, name, link } => {
+                if ctx.options().is_ignored(name, link) {
                     return None;
                 }
 
@@ -101,16 +111,13 @@ impl<'a> CandidateInner<'a> {
                 let replaced =
                     crate::LINK_TO_TREAT_SHORT.replace_all(orig, |cap: &regex::Captures| {
                         let header = cap.name("header").expect("'header' group missing").as_str();
+                        let name = cap.name("name").expect("'name' group missing").as_str();
                         let link =
                             Path::new(cap.name("link").expect("'link' group missing").as_str());
 
-                        if ctx.options().is_ignored(header, link) {
+                        if ctx.options().is_ignored(name, link) {
                             return cap.get(0).unwrap().as_str().to_string();
                         }
-
-                        let name = cap.name("name").expect("'name' group missing").as_str();
-                        let c1 = cap.name("c1").map(|x| x.as_str()).unwrap_or("");
-                        let c2 = cap.name("c2").map(|x| x.as_str()).unwrap_or("");
 
                         if link.is_absolute() {
                             // UNWRAP: full match is always successul if a Captures
@@ -125,7 +132,7 @@ impl<'a> CandidateInner<'a> {
                         };
 
                         let link = parts.transform(ctx);
-                        let mut res = format!("[{c1}{n}{c2}]", c1 = c1, c2 = c2, n = name);
+                        let mut res = format!("[{h}]", h = header);
                         if link != name {
                             res.push('(');
                             res.push_str(&link);

@@ -41,7 +41,7 @@ lazy_static! {
     /// `/// [name]: module_or_type`.
     pub static ref LINK_TO_TREAT_LONG: Regex = Regex::new(concat!(
         r"^",
-        r"(?P<header>\s*(?://[!/]\s*)?\[.+?\]:\s*)",
+        r"(?P<header>\s*(?://[!/]\s*)?\[`?(?P<name>.+?)`?\]:\s*)",
         // The special case for 'http(s):' is to avoid catching links with a
         // '::' by putting ':' in the regex: they are already intra-doc links.
         r"(?P<link>(?:https?:)?[a-zA-Z0-9_#/\-\.]+)",
@@ -62,7 +62,7 @@ lazy_static! {
     ///
     /// To be used with `::regex::Regex::captures_iter`.
     pub static ref LINK_TO_TREAT_SHORT: Regex = Regex::new(concat!(
-        r"\[(?P<header>(?P<c1>`)?(?P<name>.+?)(?P<c2>`)?)\]",
+        r"\[(?P<header>`?(?P<name>.+?)`?)\]",
         r"\((?P<link>(?:https?:)?[a-zA-Z0-9_#/\-\.]+)\)",
     )).unwrap();
 
