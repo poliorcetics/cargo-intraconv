@@ -6,7 +6,7 @@ fn candidate_from_line_ok_short() {
         assert_eq!(
             Candidate::from_line(line).unwrap(),
             Candidate {
-                inner: Candidates::from_line(line).unwrap()
+                inner: CandidateInner::from_line(line).unwrap()
             }
         );
     }
@@ -71,7 +71,7 @@ fn candidate_from_line_ok_long() {
         assert_eq!(
             Candidate::from_line(line).unwrap(),
             Candidate {
-                inner: Candidates::from_line(line).unwrap()
+                inner: CandidateInner::from_line(line).unwrap()
             }
         );
     }

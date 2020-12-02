@@ -11,7 +11,7 @@ use std::path::Path;
 /// For now only long markdown links are handled correctly.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Candidate<'a> {
-    inner: Candidates<'a>,
+    inner: CandidateInner<'a>,
 }
 
 impl<'a> Candidate<'a> {
@@ -23,7 +23,7 @@ impl<'a> Candidate<'a> {
     where
         S: AsRef<OsStr> + ?Sized + 'a,
     {
-        let inner = Candidates::from_line(line)?;
+        let inner = CandidateInner::from_line(line)?;
         Some(Self { inner })
     }
 
@@ -34,7 +34,7 @@ impl<'a> Candidate<'a> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-enum Candidates<'a> {
+enum CandidateInner<'a> {
     Long {
         /// Header of the link. This contains everything from the start of the line
         /// to the final `\s` character before the start of the link itself.
@@ -55,7 +55,7 @@ enum Candidates<'a> {
     },
 }
 
-impl<'a> Candidates<'a> {
+impl<'a> CandidateInner<'a> {
     fn from_line<S>(line: &'a S) -> Option<Self>
     where
         S: AsRef<OsStr> + ?Sized + 'a,
