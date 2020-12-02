@@ -65,22 +65,32 @@ By default the binary produced by the crate will not modify the given files,
 only show what would change:
 
 ```shell
-$ cargo intraconv path/to/std/file.rs
+# Call `cargo-intraconv` for a whole crate or workspace. Crate names will be
+# discovered from `Cargo.toml` files.
+cargo intraconv
 
-$ cargo intraconv path/to/core/file.rs -c core # Specifying the root crate
+# Call `cargo-intraconv` for specific file. No automatic crate name discovery.
+cargo intraconv path/to/std/file.rs
 
-$ cargo intraconv path/to/std/file.rs -a # Applying the changes
+# Specifying the root crate.
+cargo intraconv path/to/core/file.rs -c core 
 
-$ cargo intraconv path/to/my/file.rs -d # Disambiguate links by prefixing them
-                                        # with their rustdoc group ('type@', ...)
+# Applying the changes.
+cargo intraconv path/to/std/file.rs -a 
 
-$ cargo intravonc path/to/my/file.rs -f # Do not transform favored links to
-                                        # intra-doc links (see below for more)
+# Disambiguate links by prefixing them with their rustdoc group ('type@', ...).
+cargo intraconv path/to/my/file.rs -d                                         
 
-$ cargo intraconv path/to/my/file.rs -q # Do not display changes, only errors
+# Do not transform favored links to intra-doc links (see below for more).
+cargo intravonc path/to/my/file.rs -f 
+                                        
+# Do not display changes, only errors.
+cargo intraconv path/to/my/file.rs -q 
 
-$ cargo intraconv path/to/my/file.rs -i intraconv.toml # Give a file containing
-                                                       # links to ignore 
+# Give a file containing links to ignore.
+# 
+# Note: `intraconv.toml` is read by default when present.
+cargo intraconv path/to/my/file.rs -i intraconv.toml 
 ```
 
 It is possible to give multiple paths to files or directories. When searching
