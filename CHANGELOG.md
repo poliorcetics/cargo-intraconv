@@ -1,9 +1,11 @@
 # Version 1.4.0 - 2020-12-02
 
-- Read `intraconv.toml` by default when no ignore file is given (#36).
-- Correctly detect ignored links for long links (#38).
-- Ignore `primitive.Type.html` links since transforming them is wrong most of
-  the time (#35).
+- Feature: Read `intraconv.toml` by default when no ignore file is given (#36).
+- Fix: Ignore `primitive.Type.html` links since transforming them is wrong most
+  of the time (#35).
+- Fix: Properly handle directories when they are given explicitely in a
+  workspace (no issue).
+- Fix: Correctly detect ignored links for long links (#38).
 - Fix: use `--ignore-file` instead of `----ignore-file` (#37).
 
 # Version 1.3.0 - 2020-11-25
@@ -37,7 +39,7 @@
 
 ## Internals
 
-The internals of the crate have been extensively rewritten. They now use a 
+The internals of the crate have been extensively rewritten. They now use a
 cleaner link parser that is more safe and more extensible.
 
 This was made necessary by #21, which asked for the support of `[name](link)`.

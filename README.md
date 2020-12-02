@@ -72,24 +72,24 @@ cargo intraconv
 cargo intraconv path/to/std/file.rs
 
 # Specifying the root crate.
-cargo intraconv path/to/core/file.rs -c core 
+cargo intraconv path/to/core/file.rs -c core
 
 # Applying the changes.
-cargo intraconv path/to/std/file.rs -a 
+cargo intraconv path/to/std/file.rs -a
 
 # Disambiguate links by prefixing them with their rustdoc group ('type@', ...).
-cargo intraconv path/to/my/file.rs -d                                         
+cargo intraconv path/to/my/file.rs -d
 
 # Do not transform favored links to intra-doc links (see below for more).
-cargo intravonc path/to/my/file.rs -f 
-                                        
+cargo intravonc path/to/my/file.rs -f
+
 # Do not display changes, only errors.
-cargo intraconv path/to/my/file.rs -q 
+cargo intraconv path/to/my/file.rs -q
 
 # Give a file containing links to ignore.
-# 
+#
 # Note: `intraconv.toml` is read by default when present.
-cargo intraconv path/to/my/file.rs -i intraconv.toml 
+cargo intraconv path/to/my/file.rs -i intraconv.toml
 ```
 
 It is possible to give multiple paths to files or directories. When searching
