@@ -1,5 +1,6 @@
 # Version ?.?.? - ????-??-??
 
+- Read `intraconv.toml` by default when no ignore file is given (#36).
 - Ignore `primitive.Type.html` links since transforming them is wrong most of
   the time (#35).
 - Fix: use `--ignore-file` instead of `----ignore-file`.
