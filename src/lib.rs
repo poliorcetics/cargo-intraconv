@@ -104,13 +104,21 @@ pub fn run(mut args: CliArgs) {
 
     for path in paths {
         if path.is_dir() {
+            let path = continue_error!(path.canonicalize(), "Failed to canonicalize '{:?}'", path);
+
             for (maybe_crate_id, src_dir) in file_finder::crate_and_src() {
-                code_error!(
-                    1,
-                    env::set_current_dir(&start_dir),
-                    "Failed to set current directory back to '{:?}'",
-                    start_dir
-                );
+                if !src_dir
+                    .parent()
+                    .expect("A source dir will always have a parent")
+                    .starts_with(&path)
+                {
+                    // file_finder::crate_and_src will find every crate in the
+                    // current workspace regardless of the current directory.
+                    // To prevent this we skip the files that are outside of
+                    // the currently considered directory.
+                    continue;
+                }
+
                 match Krate::new(&maybe_crate_id) {
                     Some(_) => args.krate = maybe_crate_id,
                     None => {
@@ -121,6 +129,7 @@ pub fn run(mut args: CliArgs) {
                         args.krate = default_crate.clone();
                     }
                 }
+
                 code_error!(
                     1,
                     env::set_current_dir(&src_dir),
@@ -135,6 +144,13 @@ pub fn run(mut args: CliArgs) {
                         &file_config,
                     );
                 }
+
+                code_error!(
+                    1,
+                    env::set_current_dir(&start_dir),
+                    "Failed to set current directory back to '{:?}'",
+                    start_dir
+                );
             }
         } else {
             if args.krate != default_crate {
